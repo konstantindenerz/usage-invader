@@ -1,4 +1,4 @@
-// Offline still renderer used by `--snapshot <path>`.
+// Offline still renderer used by `--snapshot <path>` and `--readme-shots <dir>`.
 // Mimics the real context: the strip sits in the gap between a warm-gray translucent terminal
 // and a beige paper desktop, at several widths, for several usage scenarios.
 import AppKit
@@ -6,10 +6,8 @@ import SwiftUI
 
 enum SnapshotRenderer {
     @MainActor
-    static func render(to url: URL) {
-        Fonts.register()
-
-        let scenarios: [(String, UsageStore)] = [
+    private static func scenarios() -> [(String, UsageStore)] {
+        [
             ("FRESH  0/0 USED", store([one(f: 0.01, week: 0, fable: 0)])),
             ("ON PACE  42/36 @ HALF", store([one(f: 0.50, week: 42, fable: 36)])),
             ("TOO FAST  70/64 @ HALF", store([one(f: 0.50, week: 70, fable: 64)])),
@@ -17,6 +15,51 @@ enum SnapshotRenderer {
             ("EMPTY  97/100", store([one(f: 0.72, week: 97, fable: 100, bindingFable: true)])),
             ("TWO ACCOUNTS", store(scenarioTwo())),
         ]
+    }
+
+    /// Writes the README images (`panel.png`, `strip.png`, `states.png`) into `dir`.
+    @MainActor
+    static func renderReadmeShots(to dir: URL) {
+        Fonts.register()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let scenarios = scenarios()
+        let two = scenarios[5].1
+        let widths: [CGFloat] = [12, 16, 25.5, 34]
+
+        write(panel(store: two, expanded: true), to: dir.appendingPathComponent("panel.png"))
+
+        // Both skins side by side, each at every supported width.
+        write(HStack(alignment: .top, spacing: 44) {
+            ForEach(StripStyle.allCases, id: \.self) { style in
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(style.title.uppercased())
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color(hex: 0x4A443D))
+                    HStack(alignment: .top, spacing: 22) {
+                        ForEach(widths, id: \.self) { w in gapCell(width: w, store: two) }
+                    }
+                }
+                .environment(\.stripStyleOverride, style)
+            }
+        }, to: dir.appendingPathComponent("strip.png"))
+
+        // Three panels per row keep the text readable at README width.
+        write(VStack(alignment: .leading, spacing: 26) {
+            ForEach([0, 3], id: \.self) { start in
+                HStack(alignment: .top, spacing: 22) {
+                    ForEach(Array(scenarios[start..<min(start + 3, 5)].enumerated()), id: \.offset) { _, sc in
+                        caption(sc.0) { panel(store: sc.1, expanded: true) }
+                    }
+                }
+            }
+        }, to: dir.appendingPathComponent("states.png"))
+    }
+
+    @MainActor
+    static func render(to url: URL) {
+        Fonts.register()
+
+        let scenarios = scenarios()
         let states = UsageStore()
         states.lastRefresh = fixedNow.addingTimeInterval(-40)
         states.isRefreshing = true
@@ -45,10 +88,17 @@ enum SnapshotRenderer {
             stripRow("INSTRUMENT  TOO FAST", store: scenarios[2].1, widths: widths, style: .instrument, extra: [])
             stripRow("INSTRUMENT  TWO", store: scenarios[5].1, widths: widths, style: .instrument, extra: [])
         }
-        .padding(28)
-        .background(PaperDesktop())
-        .environment(\.pixelStill, true)
-        .environment(\.pixelNow, fixedNow)
+        write(scene, to: url)
+    }
+
+    /// Renders `content` on the paper desktop with the fixed clock and saves it as a PNG.
+    @MainActor
+    private static func write<V: View>(_ content: V, to url: URL) {
+        let scene = content
+            .padding(28)
+            .background(PaperDesktop())
+            .environment(\.pixelStill, true)
+            .environment(\.pixelNow, fixedNow)
 
         let renderer = ImageRenderer(content: scene)
         renderer.scale = 2

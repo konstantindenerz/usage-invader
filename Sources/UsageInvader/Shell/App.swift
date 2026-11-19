@@ -28,6 +28,19 @@ struct UsageInvaderMain {
             exit(0)
         }
 
+        if let i = args.firstIndex(of: "--readme-shots") {
+            guard i + 1 < args.count else {
+                FileHandle.standardError.write("usage: UsageInvader --readme-shots <dir>\n".data(using: .utf8)!)
+                exit(2)
+            }
+            let path = (args[i + 1] as NSString).expandingTildeInPath
+            MainActor.assumeIsolated {
+                _ = NSApplication.shared
+                SnapshotRenderer.renderReadmeShots(to: URL(fileURLWithPath: path, isDirectory: true))
+            }
+            exit(0)
+        }
+
         if args.contains("--diag") {
             // Prints where the resource bundle resolved and whether the pixel font registered.
             MainActor.assumeIsolated {
