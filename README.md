@@ -64,6 +64,9 @@ The invader icon in the menu bar shows the lowest remaining percentage.
 
 ## Notes
 
+- **Gentle on the API:** automatically, each account is asked at most once per poll interval
+  (at least 2 min apart), even across restarts. "Refresh now" and `--dump` at most every 20 s.
+  If the API answers 429, Agents pauses 1, 2, 4 … up to 30 min and shows the last values meanwhile.
 - **Read-only:** tokens are read from the keychain (via `/usr/bin/security`) and **never** refreshed
   or written. If a token has expired, Agents shows the last values as "stale" –
   just start `claude` briefly in that account and Claude Code renews the token.
