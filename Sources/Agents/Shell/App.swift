@@ -96,7 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func refresh() {
         guard !isDemo else { return }
-        Task { await store.refresh() }
+        // Explicit "Refresh now": only the short manual gap applies.
+        Task { await store.refresh(force: true) }
     }
 
     func openSettings() {

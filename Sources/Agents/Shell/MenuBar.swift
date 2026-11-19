@@ -55,10 +55,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func showPopover(from button: NSStatusBarButton) {
-        // Fresh values on open, but don't hammer the API when toggling the popover.
-        if (store.lastRefresh ?? .distantPast) < Date().addingTimeInterval(-30) {
-            Task { await store.refresh() }
-        }
+        // The store's request budget decides whether this actually asks the API.
+        Task { await store.refresh() }
         popover.contentSize = NSSize(width: Layout.expandedWidth,
                                      height: Layout.expandedContentHeight(store.snapshots))
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
