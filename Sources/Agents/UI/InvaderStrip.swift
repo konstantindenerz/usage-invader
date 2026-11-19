@@ -244,9 +244,9 @@ enum InvaderPainter {
         // invasion: hanging rows, grows with USED
         let y0 = sy + 7 * u + InvaderGeo.gap, L = g.L, rowH: CGFloat = 4
         let rows = Int(L / rowH)
-        var worst: (ly: CGFloat, hot: Bool)? = nil
 
         let columns: [Meter?] = meters.isEmpty ? [nil] : meters.map { $0 }
+        let n = min(columns.count, g.colX.count)
         for (i, m) in columns.enumerated() where i < g.colX.count {
             let x = g.colX[i], tw = g.tw
             let used = min(max(m?.percent ?? 0, 0), 100)
@@ -293,24 +293,28 @@ enum InvaderPainter {
                          with: .color(C_red.opacity(a)))
             }
             if expUsed > 0.5 {
-                let hot = st.debt
-                let x1 = x - 1, x2 = x + tw + 1
-                var dx = x1
-                var dashes = Path()
-                while dx < x2 {
-                    dashes.addRect(CGRect(x: dx, y: ly - 0.4, width: min(2, x2 - dx), height: 0.8))
-                    dx += 3
+                // pace marker: small arrows beside the column (never across the rows)
+                let hot = used > expUsed + 1
+                let col = hot ? C_bright : C_cream
+                let yy = min(max(ly.rounded(), y0 + 1), y0 + L - InvaderGeo.rowTail - 2)
+                let onLeft = n == 1 || i == 0
+                let onRight = n == 1 || i == n - 1
+                var arrow = Path()
+                if g.narrow {
+                    if onLeft { arrow.addRect(CGRect(x: x - 2.5, y: yy, width: 1.5, height: 1)) }
+                    if onRight { arrow.addRect(CGRect(x: x + tw + 1, y: yy, width: 1.5, height: 1)) }
+                } else {
+                    if onLeft {   // ▸
+                        arrow.addRect(CGRect(x: x - 4, y: yy - 1, width: 1, height: 3))
+                        arrow.addRect(CGRect(x: x - 3, y: yy, width: 1, height: 1))
+                    }
+                    if onRight {  // ◂
+                        arrow.addRect(CGRect(x: x + tw + 3, y: yy - 1, width: 1, height: 3))
+                        arrow.addRect(CGRect(x: x + tw + 2, y: yy, width: 1, height: 1))
+                    }
                 }
-                ctx.fill(dashes, with: .color(hot ? C_bright : C_cream))
-                // notch follows the meter furthest over its line
-                let over = used - expUsed
-                if worst == nil || over > 0 { worst = (ly, hot) }
+                ctx.fill(arrow, with: .color(col))
             }
-        }
-        if let w = worst {
-            // pace tick on the notch's left edge (inside: the window ends at the notch)
-            ctx.fill(Path(CGRect(x: g.capX, y: w.ly - 0.5, width: 2, height: 1)),
-                     with: .color(w.hot ? C_bright : C_cream))
         }
 
         // cannon
