@@ -43,7 +43,13 @@ alias claude-privat='CLAUDE_CONFIG_DIR=~/.claude-privat claude'
 The account shows up in the overlay on the next refresh. Names (aliases), visibility and
 order are configured under **Settings…**.
 
-## Menu (menu bar, or right/Option-click on the strip)
+## Menu bar
+
+The invader icon in the menu bar shows the lowest remaining percentage.
+**Left click** opens the usage panel as a popover, even while the overlay is hidden.
+**Right click** (or Ctrl-click) opens the menu.
+
+## Menu (right click on the menu bar icon, or right/Option-click on the strip)
 
 - One line per account, e.g. `KODE · WEEK 8% left · FABLE 0% left`
 - Menu bar text: lowest **remaining** percentage across all accounts
