@@ -83,7 +83,16 @@ struct InvaderGeo {
         }
     }
 
-    var height: CGFloat { 4 + 7 * u + 4 + L + 4 + 3 * u + 5 + 5 * u + 6 }
+    /// One spacing unit used everywhere: edge→alien, alien→rows, rows→cannon, cannon→digits, digits→edge.
+    static let gap: CGFloat = 4
+    /// The last invasion row carries a trailing 1pt row gap; subtract it so the visible gap below
+    /// the rows matches the others.
+    static let rowTail: CGFloat = 1
+
+    var height: CGFloat {
+        let G = Self.gap
+        return G + 7 * u + G + (L - Self.rowTail) + G + 3 * u + G + 5 * u + G
+    }
     /// Tallest capsule (wide art) — used by Layout so account blocks keep fixed y positions.
     static let maxHeight: CGFloat = InvaderGeo(width: Layout.collapsedWidth, columns: 2).height
 }
@@ -213,7 +222,7 @@ enum InvaderPainter {
         let u = g.u, mid = g.ix + g.iw / 2
 
         // alien
-        let sx = (mid - 4.5 * u).rounded(), sy: CGFloat = 4
+        let sx = (mid - 4.5 * u).rounded(), sy: CGFloat = InvaderGeo.gap
         if st.empty {
             let fr = InvaderArt.burst[Int(t * 3) % 2]
             sprite(&ctx, fr, x: sx, y: sy, u: u, body: C_red, eye: redHot)
@@ -233,7 +242,7 @@ enum InvaderPainter {
         }
 
         // invasion: hanging rows, grows with USED
-        let y0 = sy + 7 * u + 4, L = g.L, rowH: CGFloat = 4
+        let y0 = sy + 7 * u + InvaderGeo.gap, L = g.L, rowH: CGFloat = 4
         let rows = Int(L / rowH)
         var worst: (ly: CGFloat, hot: Bool)? = nil
 
@@ -303,7 +312,7 @@ enum InvaderPainter {
         }
 
         // cannon
-        let cy = y0 + L + 4
+        let cy = y0 + L - InvaderGeo.rowTail + InvaderGeo.gap
         let blinkOff = st.empty && Int(t * 2.5) % 2 == 0
         if !blinkOff {
             sprite(&ctx, InvaderArt.cannon.map { $0 }, x: (mid - 2.5 * u).rounded(), y: cy, u: u,
@@ -313,7 +322,7 @@ enum InvaderPainter {
         // remaining %
         if !meters.isEmpty {
             let rem = meters.map(\.remaining).min() ?? 0
-            number(&ctx, rem, cx: mid, y: cy + 3 * u + 5, u: u,
+            number(&ctx, rem, cx: mid, y: cy + 3 * u + InvaderGeo.gap, u: u,
                    color: stale ? Theme.dim : (rem <= 10 ? C_red : C_hi))
         }
     }
