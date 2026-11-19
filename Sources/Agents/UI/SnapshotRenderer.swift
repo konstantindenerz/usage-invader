@@ -25,7 +25,7 @@ enum SnapshotRenderer {
         empty.snapshots = [] // never show cached real accounts in renders
         empty.allAccounts = []
 
-        let widths: [CGFloat] = [12, 16, 26, 34]
+        let widths: [CGFloat] = [12, 16, 25.5, 34]
 
         let scene = VStack(alignment: .leading, spacing: 34) {
             // Row 1: expanded panels.

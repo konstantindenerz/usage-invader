@@ -78,7 +78,7 @@ struct OverlayRootView: View {
 }
 
 enum Layout {
-    static let collapsedWidth: CGFloat = 34
+    static let collapsedWidth: CGFloat = 25.5
     /// Narrowest collapsed strip the UI supports (fits the gap next to app windows).
     static let minCollapsedWidth: CGFloat = 10
     static let expandedWidth: CGFloat = 260
@@ -99,11 +99,11 @@ enum Layout {
     }
 
     /// Window height computed from the actual snapshots (preferred): the taller of the collapsed
-    /// strip (at full 44pt width, either skin) and the expanded panel, plus room for both flares.
+    /// strip (any strip width, either skin) and the expanded panel, plus room for both flares.
     static func height(for snapshots: [AccountSnapshot]) -> CGFloat {
-        let collapsed = max(InvaderStrip.contentHeight(snapshots, width: collapsedWidth),
-                            CollapsedStrip.contentHeight(snapshots))
-            + 2 * collapsedPadding(width: collapsedWidth)
+        let collapsed = [minCollapsedWidth, collapsedWidth].flatMap { w in
+            StripStyle.allCases.map { collapsedContentHeight(snapshots, width: w, style: $0) }
+        }.max() ?? 0
         return ceil(max(collapsed, expandedContentHeight(snapshots)) + 2 * maxFlare)
     }
 
@@ -120,8 +120,8 @@ enum Layout {
     /// Extra room above/below the collapsed content so that the distance from the notch body's
     /// edge to the content equals the side margin (content already starts one `gap` in).
     static func collapsedPadding(width: CGFloat) -> CGFloat {
-        let side = (width - InvaderGeo(width: width, columns: 1).iw) / 2
-        return max(0, side - InvaderGeo.gap)
+        let g = InvaderGeo(width: width, columns: 1)
+        return max(0, (width - g.iw) / 2 - g.gap)
     }
 
     /// Expanded panel body height.

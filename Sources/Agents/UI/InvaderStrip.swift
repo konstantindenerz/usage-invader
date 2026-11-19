@@ -54,49 +54,61 @@ enum InvaderArt {
 // MARK: - Geometry
 
 struct InvaderGeo {
-    let narrow: Bool
+    /// Three art sizes. `medium` is 75% of `large`: 1.5pt units are exactly 3 device pixels on a
+    /// Retina display, so it stays pixel-crisp there.
+    enum Size { case small, medium, large }
+
+    let size: Size
+    var narrow: Bool { size == .small }
     let capX: CGFloat, capW: CGFloat
     let iw: CGFloat, ix: CGFloat
     let tw: CGFloat, tg: CGFloat
+    /// Sprite / digit pixel size.
     let u: CGFloat
+    /// Invasion row pitch (row + 1pt gap) and total rows length.
+    let rowH: CGFloat
     let L: CGFloat
+    /// One spacing unit used everywhere: edge→alien, alien→rows, rows→cannon, cannon→digits, digits→edge.
+    let gap: CGFloat
+    /// Optical compensation: the heavy digits need a little more room below than the alien above.
+    let bottomExtra: CGFloat
     let colX: [CGFloat]
 
-    /// `columns`: number of meter columns (1 or 2).
-    init(width W: CGFloat, columns: Int) {
-        // Wide art needs a 22pt interior; below ~26pt strip width use the narrow (u = 1) art.
-        narrow = W < 26
-        // Flush with the screen edge: the notch background spans the full strip width.
-        capX = 0
-        capW = max(6, W)
-        iw = narrow ? 9 : 22
-        ix = capX + (capW - iw) / 2
-        tw = narrow ? 4 : 7
-        tg = narrow ? 1 : 4
-        u = narrow ? 1 : 2
-        L = 56   // 14 rows of 4pt
-        if columns >= 2 {
-            let c0 = ix + (iw - (2 * tw + tg)) / 2
-            colX = [c0, c0 + tw + tg]
-        } else {
-            colX = [ix + (iw - tw) / 2]
-        }
-    }
-
-    /// One spacing unit used everywhere: edge→alien, alien→rows, rows→cannon, cannon→digits, digits→edge.
-    static let gap: CGFloat = 4
+    static let rows = 14
     /// The last invasion row carries a trailing 1pt row gap; subtract it so the visible gap below
     /// the rows matches the others.
     static let rowTail: CGFloat = 1
-    /// Optical compensation: the heavy digits need a little more room below than the alien above.
-    static let bottomExtra: CGFloat = 2
+
+    /// Snap to the half-point grid (whole device pixels at 2x).
+    static func snap(_ v: CGFloat) -> CGFloat { (v * 2).rounded() / 2 }
+
+    /// `columns`: number of meter columns (1 or 2).
+    init(width W: CGFloat, columns: Int) {
+        size = W >= 34 ? .large : (W >= 25 ? .medium : .small)
+        // Flush with the screen edge: the notch background spans the full strip width.
+        capX = 0
+        capW = max(6, W)
+        switch size {
+        case .large:  u = 2;   iw = 22;   tw = 7; tg = 4;   rowH = 4; gap = 4; bottomExtra = 2
+        case .medium: u = 1.5; iw = 13.5; tw = 5; tg = 3.5; rowH = 3; gap = 3; bottomExtra = 1.5
+        case .small:  u = 1;   iw = 9;    tw = 4; tg = 1;   rowH = 4; gap = 4; bottomExtra = 2
+        }
+        ix = capX + (capW - iw) / 2
+        L = CGFloat(Self.rows) * rowH
+        if columns >= 2 {
+            let c0 = Self.snap(ix + (iw - (2 * tw + tg)) / 2)
+            colX = [c0, c0 + tw + tg]
+        } else {
+            colX = [Self.snap(ix + (iw - tw) / 2)]
+        }
+    }
 
     var height: CGFloat {
-        let G = Self.gap
-        return G + 7 * u + G + (L - Self.rowTail) + G + 3 * u + G + 5 * u + G + Self.bottomExtra
+        gap + 7 * u + gap + (L - Self.rowTail) + gap + 3 * u + gap + 5 * u + gap + bottomExtra
     }
-    /// Tallest capsule (wide art) — used by Layout so account blocks keep fixed y positions.
-    static let maxHeight: CGFloat = InvaderGeo(width: Layout.collapsedWidth, columns: 2).height
+    /// Tallest block at any strip width — used by Layout to size the window.
+    static let maxHeight: CGFloat = [Layout.minCollapsedWidth, Layout.collapsedWidth]
+        .map { InvaderGeo(width: $0, columns: 2).height }.max() ?? 0
 }
 
 // MARK: - Strip
@@ -224,7 +236,7 @@ enum InvaderPainter {
         let u = g.u, mid = g.ix + g.iw / 2
 
         // alien
-        let sx = (mid - 4.5 * u).rounded(), sy: CGFloat = InvaderGeo.gap
+        let sx = InvaderGeo.snap(mid - 4.5 * u), sy: CGFloat = g.gap
         if st.empty {
             let fr = InvaderArt.burst[Int(t * 3) % 2]
             sprite(&ctx, fr, x: sx, y: sy, u: u, body: C_red, eye: redHot)
@@ -244,8 +256,9 @@ enum InvaderPainter {
         }
 
         // invasion: hanging rows, grows with USED
-        let y0 = sy + 7 * u + InvaderGeo.gap, L = g.L, rowH: CGFloat = 4
-        let rows = Int(L / rowH)
+        let y0 = sy + 7 * u + g.gap, L = g.L, rowH = g.rowH
+        let rows = InvaderGeo.rows
+        let rowFill = rowH - 1
 
         let columns: [Meter?] = meters.isEmpty ? [nil] : meters.map { $0 }
         let n = min(columns.count, g.colX.count)
@@ -256,7 +269,7 @@ enum InvaderPainter {
             let filled = used > 0 ? max(1, Int((used / 100 * Double(rows)).rounded())) : 0
             for r in 0..<rows {
                 let y = y0 + CGFloat(r) * rowH
-                let rect = CGRect(x: x, y: y, width: tw, height: 3)
+                let rect = CGRect(x: x, y: y, width: tw, height: rowFill)
                 if r < filled {
                     let front = r == filled - 1
                     var col: Color = used >= 90 ? C_red : (r % 2 == 1 ? C_lo : C_hi)
@@ -273,10 +286,10 @@ enum InvaderPainter {
                     }
                     // little teeth so rows read like descending invaders
                     let tooth = Color(hex: 0x1C1B19)
-                    ctx.fill(Path(CGRect(x: x + tw / 2 - 0.5, y: y + 2, width: 1, height: 1)), with: .color(tooth))
+                    ctx.fill(Path(CGRect(x: x + tw / 2 - 0.5, y: y + rowFill - 1, width: 1, height: 1)), with: .color(tooth))
                     if tw >= 6 {
-                        ctx.fill(Path(CGRect(x: x, y: y + 2, width: 1, height: 1)), with: .color(tooth))
-                        ctx.fill(Path(CGRect(x: x + tw - 1, y: y + 2, width: 1, height: 1)), with: .color(tooth))
+                        ctx.fill(Path(CGRect(x: x, y: y + rowFill - 1, width: 1, height: 1)), with: .color(tooth))
+                        ctx.fill(Path(CGRect(x: x + tw - 1, y: y + rowFill - 1, width: 1, height: 1)), with: .color(tooth))
                     }
                 } else {
                     // free rows: a clearly visible dim grid (dimmer when stale)
@@ -320,17 +333,17 @@ enum InvaderPainter {
         }
 
         // cannon
-        let cy = y0 + L - InvaderGeo.rowTail + InvaderGeo.gap
+        let cy = y0 + L - InvaderGeo.rowTail + g.gap
         let blinkOff = st.empty && Int(t * 2.5) % 2 == 0
         if !blinkOff {
-            sprite(&ctx, InvaderArt.cannon.map { $0 }, x: (mid - 2.5 * u).rounded(), y: cy, u: u,
+            sprite(&ctx, InvaderArt.cannon.map { $0 }, x: InvaderGeo.snap(mid - 2.5 * u), y: cy, u: u,
                    body: st.empty ? C_red : (stale ? Theme.dim : C_sand), eye: C_sand)
         }
 
         // remaining %
         if !meters.isEmpty {
             let rem = meters.map(\.remaining).min() ?? 0
-            number(&ctx, rem, cx: mid, y: cy + 3 * u + InvaderGeo.gap, u: u,
+            number(&ctx, rem, cx: mid, y: cy + 3 * u + g.gap, u: u,
                    color: stale ? Theme.dim : (rem <= 10 ? C_red : C_hi))
         }
     }
@@ -352,7 +365,7 @@ enum InvaderPainter {
         let s = String(Int(max(0, n).rounded()))
         let widths = s.map { CGFloat(InvaderArt.digits[$0]?[0].count ?? 3) }
         let total = widths.reduce(0, +) * u + CGFloat(s.count - 1) * u
-        var x = (cx - total / 2).rounded()
+        var x = InvaderGeo.snap(cx - total / 2)
         var path = Path()
         for (i, ch) in s.enumerated() {
             for (r, row) in (InvaderArt.digits[ch] ?? []).enumerated() {
