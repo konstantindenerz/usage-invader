@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds build/Agents.app (release, ad-hoc signed).
+# Builds build/Agents.app (release, ad-hoc signed with the hardened runtime).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -44,6 +44,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-echo "==> codesign (ad-hoc)"
-codesign --force --deep -s - "$APP"
+echo "==> codesign (ad-hoc, hardened runtime)"
+codesign --force --deep --options runtime -s - "$APP"
 codesign --verify --deep --strict "$APP" && echo "==> OK: $APP"
