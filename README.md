@@ -1,6 +1,6 @@
 # Usage Invader
 
-[![build](https://github.com/konstantindenerz/claude-usage-invader/actions/workflows/build.yml/badge.svg)](https://github.com/konstantindenerz/claude-usage-invader/actions/workflows/build.yml)
+[![build](https://github.com/konstantindenerz/usage-invader/actions/workflows/build.yml/badge.svg)](https://github.com/konstantindenerz/usage-invader/actions/workflows/build.yml)
 
 A small macOS overlay that shows how much of your Claude subscription is left, for one or
 several accounts, as a pixel strip on the right edge of the screen. Hover the strip and it
@@ -48,7 +48,7 @@ All images are rendered from demo data with `--readme-shots`.
 ### Download
 
 1. Download `UsageInvader-<version>.zip` from the
-   [latest release](https://github.com/konstantindenerz/claude-usage-invader/releases/latest).
+   [latest release](https://github.com/konstantindenerz/usage-invader/releases/latest).
 2. Unzip it and move `UsageInvader.app` to `/Applications`.
 3. The app is ad-hoc signed and not notarized, so Gatekeeper blocks it on first launch.
    Remove the quarantine flag once, then open it:
@@ -61,8 +61,8 @@ All images are rendered from demo data with `--readme-shots`.
 ### Build from source
 
 ```sh
-git clone https://github.com/konstantindenerz/claude-usage-invader.git
-cd claude-usage-invader
+git clone https://github.com/konstantindenerz/usage-invader.git
+cd usage-invader
 scripts/run.sh              # builds build/UsageInvader.app and launches it
 ```
 
