@@ -39,6 +39,31 @@ enum InvaderArt {
          "..X...X..",
          "........."],
     ]
+    /// Smaller 7×5 sibling, used by the default (medium) strip.
+    static let alienSmall: [[String]] = [
+        ["X.....X",
+         ".XXXXX.",
+         "XX.E.XX",
+         "XXXXXXX",
+         "X.X.X.X"],
+        ["X.....X",
+         ".XXXXX.",
+         "XX.E.XX",
+         "XXXXXXX",
+         ".X...X."],
+    ]
+    static let burstSmall: [[String]] = [
+        ["X..X..X",
+         ".X...X.",
+         "X..E..X",
+         ".X...X.",
+         "X..X..X"],
+        [".......",
+         "..X.X..",
+         ".X.E.X.",
+         "..X.X..",
+         "......."],
+    ]
     static let cannon = ["..X..", ".XXX.", "XXXXX"]
     static let digits: [Character: [String]] = [
         "0": ["111", "101", "101", "101", "111"], "1": ["1", "1", "1", "1", "1"],
@@ -73,6 +98,10 @@ struct InvaderGeo {
     /// Optical compensation: the heavy digits need a little more room below than the alien above.
     let bottomExtra: CGFloat
     let colX: [CGFloat]
+    /// Alien / burst frames for this size.
+    let alien: [[String]], burst: [[String]]
+    var alienRows: CGFloat { CGFloat(alien[0].count) }
+    var alienCols: CGFloat { CGFloat(alien[0][0].count) }
 
     static let rows = 14
     /// The last invasion row carries a trailing 1pt row gap; subtract it so the visible gap below
@@ -93,6 +122,8 @@ struct InvaderGeo {
         case .medium: u = 1.5; iw = 13.5; tw = 5; tg = 3.5; rowH = 3; gap = 3; bottomExtra = 1.5
         case .small:  u = 1;   iw = 9;    tw = 4; tg = 1;   rowH = 4; gap = 4; bottomExtra = 2
         }
+        alien = size == .medium ? InvaderArt.alienSmall : InvaderArt.alien
+        burst = size == .medium ? InvaderArt.burstSmall : InvaderArt.burst
         ix = capX + (capW - iw) / 2
         L = CGFloat(Self.rows) * rowH
         if columns >= 2 {
@@ -104,7 +135,7 @@ struct InvaderGeo {
     }
 
     var height: CGFloat {
-        gap + 7 * u + gap + (L - Self.rowTail) + gap + 3 * u + gap + 5 * u + gap + bottomExtra
+        gap + alienRows * u + gap + (L - Self.rowTail) + gap + 3 * u + gap + 5 * u + gap + bottomExtra
     }
     /// Tallest block at any strip width — used by Layout to size the window.
     static let maxHeight: CGFloat = [Layout.minCollapsedWidth, Layout.collapsedWidth]
@@ -236,13 +267,13 @@ enum InvaderPainter {
         let u = g.u, mid = g.ix + g.iw / 2
 
         // alien
-        let sx = InvaderGeo.snap(mid - 4.5 * u), sy: CGFloat = g.gap
+        let sx = InvaderGeo.snap(mid - g.alienCols / 2 * u), sy: CGFloat = g.gap
         if st.empty {
-            let fr = InvaderArt.burst[Int(t * 3) % 2]
+            let fr = g.burst[Int(t * 3) % 2]
             sprite(&ctx, fr, x: sx, y: sy, u: u, body: C_red, eye: redHot)
         } else {
             let period = st.angry ? 0.28 : 0.7
-            let fr = InvaderArt.alien[Int(t / period) % 2]
+            let fr = g.alien[Int(t / period) % 2]
             let body: Color = stale || !hasAccount ? Theme.dim : (st.angry ? C_hi : C_sand)
             let eye: Color = stale || !hasAccount ? Theme.muted : (st.angry ? redHot : C_cream)
             if st.angry {
@@ -256,7 +287,7 @@ enum InvaderPainter {
         }
 
         // invasion: hanging rows, grows with USED
-        let y0 = sy + 7 * u + g.gap, L = g.L, rowH = g.rowH
+        let y0 = sy + g.alienRows * u + g.gap, L = g.L, rowH = g.rowH
         let rows = InvaderGeo.rows
         let rowFill = rowH - 1
 
