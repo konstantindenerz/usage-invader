@@ -85,7 +85,7 @@ struct InvaderGeo {
 
     var height: CGFloat { 4 + 7 * u + 4 + L + 4 + 3 * u + 5 + 5 * u + 6 }
     /// Tallest capsule (wide art) — used by Layout so account blocks keep fixed y positions.
-    static let maxHeight: CGFloat = InvaderGeo(width: 44, columns: 2).height
+    static let maxHeight: CGFloat = InvaderGeo(width: Layout.collapsedWidth, columns: 2).height
 }
 
 // MARK: - Strip

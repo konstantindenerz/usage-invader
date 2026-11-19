@@ -77,7 +77,7 @@ struct OverlayRootView: View {
 }
 
 enum Layout {
-    static let collapsedWidth: CGFloat = 44
+    static let collapsedWidth: CGFloat = 34
     /// Narrowest collapsed strip the UI supports (fits the gap next to app windows).
     static let minCollapsedWidth: CGFloat = 10
     static let expandedWidth: CGFloat = 260
