@@ -105,7 +105,7 @@ final class OverlayController {
         self.menuProvider = menuProvider
         self.isHidden = UserDefaults.standard.bool(forKey: Self.hiddenKey)
         self.preferredScreenName = UserDefaults.standard.string(forKey: Self.screenKey)
-        self.fitMargin = UserDefaults.standard.object(forKey: Self.fitMarginKey) as? Bool ?? true
+        self.fitMargin = UserDefaults.standard.object(forKey: Self.fitMarginKey) as? Bool ?? false
 
         let initial = NSRect(x: 0, y: 0, width: Layout.collapsedWidth, height: 200)
         panel = OverlayPanel(contentRect: initial)

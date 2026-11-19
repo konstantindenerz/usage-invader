@@ -85,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             selectScreen: { [weak self] name in self?.overlay.selectScreen(named: name) },
             selectedScreenName: { [weak self] in self?.overlay.preferredScreenName },
             toggleFitMargin: { [weak self] in self?.overlay.toggleFitMargin() },
-            isFitMargin: { [weak self] in self?.overlay.fitMargin ?? true }
+            isFitMargin: { [weak self] in self?.overlay.fitMargin ?? false }
         )
         menuBar = MenuBarController(store: store, actions: actions)
         overlay = OverlayController(store: store, menuProvider: { [weak self] in
