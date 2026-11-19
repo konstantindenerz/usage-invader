@@ -24,6 +24,7 @@ final class UsageStore {
     @ObservationIgnored private var retryUntil: [String: Date] = UsageStore.loadRetryUntil() {
         didSet { UsageStore.saveRetryUntil(retryUntil) }
     }
+    @ObservationIgnored private var throttleCount: [String: Int] = [:]
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
     @ObservationIgnored private var settingsObserver: NSObjectProtocol?
@@ -137,7 +138,17 @@ final class UsageStore {
     private func apply(_ r: AccountFetchResult) {
         if let p = r.profile { profiles[r.service] = p }
         if let st = r.subscriptionType { subscriptionTypes[r.service] = st }
-        if let until = r.retryUntil { retryUntil[r.service] = until } else { retryUntil[r.service] = nil }
+        if let until = r.retryUntil {
+            // The server's Retry-After can be very short while it keeps answering 429.
+            // Back off exponentially on repeated 429s: 1, 2, 4 … up to 30 minutes.
+            let n = (throttleCount[r.service] ?? 0) + 1
+            throttleCount[r.service] = n
+            let backoff = min(1800, 60 * pow(2, Double(n - 1)))
+            retryUntil[r.service] = max(until, Date().addingTimeInterval(backoff))
+        } else {
+            throttleCount[r.service] = nil
+            retryUntil[r.service] = nil
+        }
 
         var snap = all[r.service] ?? AccountSnapshot(account: AccountInfo(service: r.service), meters: [],
                                                      extraUsage: nil, status: .loading, updatedAt: nil)
