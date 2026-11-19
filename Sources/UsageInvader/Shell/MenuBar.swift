@@ -282,13 +282,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func addAccount() {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Add a Claude account"
+        alert.messageText = "Add an account"
         alert.informativeText = """
-        Each account lives in its own Claude Code config dir. In a terminal run:
+        Each account lives in its own config directory. In a terminal run:
 
             \(Self.addAccountCommand)
 
-        then type /login inside Claude Code. The new keychain entry is picked up automatically on the next refresh.
+        then type /login. The new keychain entry is picked up automatically on the next refresh.
 
         Tip: add an alias to your shell, e.g.
             alias claude-work='CLAUDE_CONFIG_DIR=~/.claude-work claude'

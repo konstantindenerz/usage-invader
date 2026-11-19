@@ -32,7 +32,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("> CLAUDE SETTINGS")
+            Text("> SETTINGS")
                 .font(.pixel(14, bold: true))
                 .foregroundStyle(Theme.cream)
 

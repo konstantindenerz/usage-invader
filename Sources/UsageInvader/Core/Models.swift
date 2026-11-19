@@ -38,7 +38,7 @@ struct ExtraUsage: Equatable, Sendable {
 }
 
 struct AccountInfo: Identifiable, Equatable, Sendable {
-    /// Keychain service name, e.g. "Claude Code-credentials" or "Claude Code-credentials-1a2b3c4d".
+    /// Keychain service name the account was found under (see `Keychain.servicePrefix`).
     var id: String { service }
     var service: String
     var email: String?
@@ -67,7 +67,7 @@ struct AccountInfo: Identifiable, Equatable, Sendable {
 enum AccountStatus: Equatable, Sendable {
     case loading
     case ok
-    /// Token expired locally — show last values, hint "run claude".
+    /// Token expired locally — show last values and a hint to run the CLI.
     case tokenExpired
     /// Network unreachable.
     case offline
@@ -142,14 +142,14 @@ extension AccountSnapshot {
         let now = Date()
         return [
             AccountSnapshot(
-                account: AccountInfo(service: "Claude Code-credentials", email: "kode@example.com", displayName: "Kode", plan: "Max"),
+                account: AccountInfo(service: Keychain.defaultService, email: "kode@example.com", displayName: "Kode", plan: "Max"),
                 meters: [
                     Meter(id: "weekly_all", label: "WEEK", title: "Current week (all models)", percent: 92, resetsAt: now.addingTimeInterval(3600 * 5), severity: .critical, isActive: false),
                     Meter(id: "weekly_scoped:Fable", label: "FABLE", title: "Current week (Fable)", percent: 100, resetsAt: now.addingTimeInterval(3600 * 5), severity: .critical, isActive: true),
                 ],
                 extraUsage: nil, status: .ok, updatedAt: now),
             AccountSnapshot(
-                account: AccountInfo(service: "Claude Code-credentials-1a2b3c4d", email: "work@example.com", displayName: "Work Account", plan: "Team", alias: "Work"),
+                account: AccountInfo(service: Keychain.defaultService + "-1a2b3c4d", email: "work@example.com", displayName: "Work Account", plan: "Team", alias: "Work"),
                 meters: [
                     Meter(id: "five_hour", label: "5H", title: "Current session", percent: 18, resetsAt: now.addingTimeInterval(3600 * 2.3), severity: .normal, isActive: false),
                     Meter(id: "weekly_all", label: "WEEK", title: "Current week (all models)", percent: 41, resetsAt: now.addingTimeInterval(86400 * 3.4), severity: .normal, isActive: false),
