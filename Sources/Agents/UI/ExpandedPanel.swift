@@ -38,7 +38,7 @@ struct ExpandedPanel: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 0) {
-            TypeOn(text: "AGENTS", charInterval: 0.025)
+            TypeOn(text: "CLAUDE", charInterval: 0.025)
                 .font(.pixel(16))
                 .foregroundStyle(Theme.cream)
             Blink(period: 0.53) { on in
