@@ -45,9 +45,11 @@ order are configured under **Settings…**.
 
 ## Menu (menu bar, or right/Option-click on the strip)
 
-- One line per account, e.g. `KODE · WEEK 92% · FABLE 100%`
+- One line per account, e.g. `KODE · WEEK 8% left · FABLE 0% left`
 - Menu bar text: lowest **remaining** percentage across all accounts
 - **Refresh now** (⌘R), **Show/Hide overlay**, **Scanlines** on/off
+- **Style** – skin of the collapsed strip: **Invader** (default) or **Instrument**
+- **Fit to free margin** – strip only as wide as the free gap next to the windows (default: off, full 44 pt, may overlap)
 - **Screen** – which display the strip sits on (default: main display with the menu bar)
 - **Settings…** – aliases, visible/hidden, order, poll interval (60/120/300 s), scanlines
 - **Launch at login** (only from `Agents.app`, via `SMAppService`)
