@@ -1,0 +1,239 @@
+import AppKit
+import Observation
+import ServiceManagement
+
+@MainActor
+final class MenuBarController: NSObject, NSMenuDelegate {
+    private let store: UsageStore
+    private let actions: AppActions
+    private let item: NSStatusItem
+
+    init(store: UsageStore, actions: AppActions) {
+        self.store = store
+        self.actions = actions
+        self.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        super.init()
+
+        let menu = NSMenu()
+        menu.delegate = self
+        item.menu = menu
+        updateButton()
+        observeStore()
+    }
+
+    // MARK: Status button
+
+    /// Lowest REMAINING percent across all visible meters.
+    private var lowestRemaining: Double? {
+        store.snapshots.flatMap(\.meters).map(\.remaining).min()
+    }
+
+    private func updateButton() {
+        guard let button = item.button else { return }
+        let image = NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "Agents")
+        image?.isTemplate = true
+        button.image = image
+        button.imagePosition = .imageLeading
+        if let r = lowestRemaining {
+            button.attributedTitle = NSAttributedString(
+                string: " \(Int(r.rounded()))%",
+                attributes: [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)])
+        } else {
+            button.title = ""
+        }
+        button.toolTip = "Agents"
+    }
+
+    private func observeStore() {
+        withObservationTracking {
+            _ = store.snapshots
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.updateButton()
+                self?.observeStore()
+            }
+        }
+    }
+
+    // MARK: Menu
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        for i in buildItems() { menu.addItem(i) }
+    }
+
+    /// Fresh standalone menu (used for the overlay's context menu).
+    func makeMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        for i in buildItems() { menu.addItem(i) }
+        return menu
+    }
+
+    private func buildItems() -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        let mono = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+
+        if store.snapshots.isEmpty {
+            let empty = NSMenuItem(title: store.isRefreshing ? "Loading…" : "No accounts found", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            items.append(empty)
+        }
+        for snap in store.snapshots {
+            var parts = [snap.account.label.uppercased()]
+            parts += snap.meters.map { "\($0.label) \(Int($0.remaining.rounded()))% left" }
+            var line = parts.joined(separator: " · ")
+            if let hint = statusHint(snap.status) { line += "  (\(hint))" }
+            let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+            row.attributedTitle = NSAttributedString(string: line, attributes: [.font: mono])
+            row.isEnabled = false
+            items.append(row)
+        }
+        if let last = store.lastRefresh {
+            let f = RelativeDateTimeFormatter()
+            f.unitsStyle = .short
+            let row = NSMenuItem(title: "Updated \(f.localizedString(for: last, relativeTo: Date()))", action: nil, keyEquivalent: "")
+            row.isEnabled = false
+            items.append(row)
+        }
+
+        items.append(.separator())
+        items.append(make("Refresh now", #selector(refreshNow), key: "r"))
+        items.append(make(actions.isOverlayHidden() ? "Show overlay" : "Hide overlay", #selector(toggleOverlay)))
+
+        let scan = make("Scanlines", #selector(toggleScanlines))
+        scan.state = AppSettings.shared.scanlines ? .on : .off
+        items.append(scan)
+
+        let fit = make("Fit to free margin", #selector(toggleFitMargin))
+        fit.state = actions.isFitMargin() ? .on : .off
+        fit.toolTip = "Shrink the collapsed strip to the gap between your windows and the screen edge"
+        items.append(fit)
+
+        items.append(styleMenuItem())
+        items.append(screenMenuItem())
+        items.append(make("Settings…", #selector(openSettings), key: ","))
+
+        let login = make("Launch at login", #selector(toggleLaunchAtLogin))
+        if Self.isAppBundle {
+            login.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        } else {
+            login.isEnabled = false
+            login.toolTip = "Only available when running from Agents.app"
+        }
+        items.append(login)
+
+        items.append(make("Add account…", #selector(addAccount)))
+        items.append(.separator())
+        items.append(make("Quit Agents", #selector(quit), key: "q"))
+        return items
+    }
+
+    private func styleMenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Style", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        sub.autoenablesItems = false
+        for style in StripStyle.allCases {
+            let i = make(style.title, #selector(selectStyle(_:)))
+            i.representedObject = style.rawValue
+            i.state = AppSettings.shared.stripStyle == style ? .on : .off
+            sub.addItem(i)
+        }
+        parent.submenu = sub
+        return parent
+    }
+
+    private func screenMenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Screen", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        sub.autoenablesItems = false
+        let current = actions.selectedScreenName()
+        let auto = make("Main display (menu bar)", #selector(selectScreen(_:)))
+        auto.representedObject = nil
+        auto.state = current == nil ? .on : .off
+        sub.addItem(auto)
+        for s in NSScreen.screens {
+            let i = make(s.localizedName, #selector(selectScreen(_:)))
+            i.representedObject = s.localizedName
+            i.state = current == s.localizedName ? .on : .off
+            sub.addItem(i)
+        }
+        parent.submenu = sub
+        return parent
+    }
+
+    private func statusHint(_ s: AccountStatus) -> String? {
+        switch s {
+        case .ok: return nil
+        case .loading: return "loading"
+        case .tokenExpired: return "token expired — run claude"
+        case .offline: return "offline"
+        case .rateLimited: return "rate limited"
+        case .error(let m): return "error: \(m)"
+        }
+    }
+
+    private func make(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+        let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        i.target = self
+        i.isEnabled = true
+        return i
+    }
+
+    static var isAppBundle: Bool { Bundle.main.bundleURL.pathExtension == "app" }
+
+    // MARK: Actions
+
+    @objc private func refreshNow() { actions.refresh() }
+    @objc private func toggleOverlay() { actions.toggleOverlay() }
+    @objc private func toggleScanlines() { AppSettings.shared.scanlines.toggle() }
+    @objc private func toggleFitMargin() { actions.toggleFitMargin() }
+    @objc private func openSettings() { actions.openSettings() }
+    @objc private func selectScreen(_ sender: NSMenuItem) { actions.selectScreen(sender.representedObject as? String) }
+    @objc private func selectStyle(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let style = StripStyle(rawValue: raw) else { return }
+        AppSettings.shared.stripStyle = style
+    }
+    @objc private func quit() { NSApp.terminate(nil) }
+
+    @objc private func toggleLaunchAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled {
+                try service.unregister()
+            } else {
+                try service.register()
+            }
+        } catch {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.messageText = "Launch at login failed"
+            alert.informativeText = "\(error.localizedDescription)\n\nIf macOS asks for approval, enable Agents under System Settings → General → Login Items."
+            alert.runModal()
+        }
+    }
+
+    static let addAccountCommand = "CLAUDE_CONFIG_DIR=~/.claude-<name> claude"
+
+    @objc private func addAccount() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Add a Claude account"
+        alert.informativeText = """
+        Each account lives in its own Claude Code config dir. In a terminal run:
+
+            \(Self.addAccountCommand)
+
+        then type /login inside Claude Code. The new keychain entry is picked up automatically on the next refresh.
+
+        Tip: add an alias to your shell, e.g.
+            alias claude-work='CLAUDE_CONFIG_DIR=~/.claude-work claude'
+        """
+        alert.addButton(withTitle: "Copy command")
+        alert.addButton(withTitle: "Close")
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(Self.addAccountCommand, forType: .string)
+        }
+    }
+}
