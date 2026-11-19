@@ -88,10 +88,12 @@ struct InvaderGeo {
     /// The last invasion row carries a trailing 1pt row gap; subtract it so the visible gap below
     /// the rows matches the others.
     static let rowTail: CGFloat = 1
+    /// Optical compensation: the heavy digits need a little more room below than the alien above.
+    static let bottomExtra: CGFloat = 2
 
     var height: CGFloat {
         let G = Self.gap
-        return G + 7 * u + G + (L - Self.rowTail) + G + 3 * u + G + 5 * u + G
+        return G + 7 * u + G + (L - Self.rowTail) + G + 3 * u + G + 5 * u + G + Self.bottomExtra
     }
     /// Tallest capsule (wide art) — used by Layout so account blocks keep fixed y positions.
     static let maxHeight: CGFloat = InvaderGeo(width: Layout.collapsedWidth, columns: 2).height
