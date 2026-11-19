@@ -125,6 +125,17 @@ enum FetchError: Error, Sendable {
     case other(String)
 }
 
+/// The API never redirects. Refusing redirects keeps the bearer token from following one
+/// to another host; the 3xx answer then surfaces as an HTTP error.
+private final class NoRedirects: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+}
+
 enum UsageAPI {
     static let base = URL(string: "https://api.anthropic.com/api/oauth/")!
 
@@ -133,7 +144,7 @@ enum UsageAPI {
         cfg.timeoutIntervalForRequest = 20
         cfg.timeoutIntervalForResource = 30
         cfg.requestCachePolicy = .reloadIgnoringLocalCacheData
-        return URLSession(configuration: cfg)
+        return URLSession(configuration: cfg, delegate: NoRedirects(), delegateQueue: nil)
     }()
 
     static func get(_ path: String, token: String) async throws -> Data {
