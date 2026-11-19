@@ -30,11 +30,7 @@ private struct CacheFile: Codable {
 }
 
 enum SnapshotCache {
-    static var url: URL {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Caches")
-        return base.appendingPathComponent("Agents/last.json")
-    }
+    static var url: URL { CacheFiles.url("last.json") }
 
     /// Loaded snapshots have status `.loading` and no alias (store applies aliases).
     /// The file is treated as untrusted: numbers and dates are brought into range.
@@ -79,8 +75,6 @@ enum SnapshotCache {
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .secondsSince1970
         guard let data = try? enc.encode(file) else { return }
-        let u = url
-        try? FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? data.write(to: u, options: .atomic)
+        CacheFiles.write(data, to: url)
     }
 }

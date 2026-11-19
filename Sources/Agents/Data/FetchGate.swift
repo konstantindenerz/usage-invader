@@ -72,11 +72,7 @@ enum FetchGate {
 
     // MARK: Persistence
 
-    private static var fileURL: URL {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Caches")
-        return base.appendingPathComponent("Agents/fetch-state.json")
-    }
+    private static var fileURL: URL { CacheFiles.url("fetch-state.json") }
 
     static func load() -> [String: FetchState] {
         guard let data = try? Data(contentsOf: fileURL) else { return [:] }
@@ -90,8 +86,6 @@ enum FetchGate {
         enc.dateEncodingStrategy = .secondsSince1970
         enc.outputFormatting = [.sortedKeys]
         guard let data = try? enc.encode(states) else { return }
-        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
-                                                 withIntermediateDirectories: true)
-        try? data.write(to: fileURL, options: .atomic)
+        CacheFiles.write(data, to: fileURL)
     }
 }
