@@ -19,7 +19,11 @@ final class UsageStore {
     @ObservationIgnored private var services: [String] = []
     @ObservationIgnored private var profiles: [String: AccountProfile] = [:]
     @ObservationIgnored private var subscriptionTypes: [String: String] = [:]
-    @ObservationIgnored private var retryUntil: [String: Date] = [:]
+    /// Per-account "don't ask before" times from 429 responses. Persisted, so a restart
+    /// doesn't hit the API again while it is still rate limiting us.
+    @ObservationIgnored private var retryUntil: [String: Date] = UsageStore.loadRetryUntil() {
+        didSet { UsageStore.saveRetryUntil(retryUntil) }
+    }
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
     @ObservationIgnored private var settingsObserver: NSObjectProtocol?
@@ -103,6 +107,10 @@ final class UsageStore {
         }
 
         for r in results { apply(r) }
+        // Accounts skipped because of a pending Retry-After show as throttled, not as loading.
+        for svc in services where !toFetch.contains(svc) && all[svc]?.status == .loading {
+            all[svc]?.status = .rateLimited
+        }
         // Ensure every discovered service has a snapshot.
         for svc in services where all[svc] == nil {
             all[svc] = AccountSnapshot(account: AccountInfo(service: svc), meters: [], extraUsage: nil,
@@ -113,6 +121,18 @@ final class UsageStore {
     }
 
     // MARK: - Private
+
+    private static let retryKey = "retryUntil"
+
+    private static func loadRetryUntil() -> [String: Date] {
+        let raw = UserDefaults.standard.dictionary(forKey: retryKey) as? [String: Double] ?? [:]
+        let now = Date()
+        return raw.mapValues { Date(timeIntervalSince1970: $0) }.filter { $0.value > now }
+    }
+
+    private static func saveRetryUntil(_ value: [String: Date]) {
+        UserDefaults.standard.set(value.mapValues { $0.timeIntervalSince1970 }, forKey: retryKey)
+    }
 
     private func apply(_ r: AccountFetchResult) {
         if let p = r.profile { profiles[r.service] = p }
