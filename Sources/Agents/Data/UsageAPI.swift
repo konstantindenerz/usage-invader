@@ -298,6 +298,8 @@ struct AccountFetchResult: Sendable {
     var profile: AccountProfile?
     var subscriptionType: String?
     var retryUntil: Date?
+    /// True once a request was actually sent (not for missing or locally expired credentials).
+    var requested = false
 }
 
 enum AccountFetcher {
@@ -319,6 +321,7 @@ enum AccountFetcher {
             return result
         }
         let token = creds.accessToken
+        result.requested = true
         async let profileTask: ProfileResponse? = needProfile ? UsageAPI.fetchProfile(token: token) : nil
         do {
             let usage = try await UsageAPI.fetchUsage(token: token)

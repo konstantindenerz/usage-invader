@@ -19,12 +19,6 @@ final class UsageStore {
     @ObservationIgnored private var services: [String] = []
     @ObservationIgnored private var profiles: [String: AccountProfile] = [:]
     @ObservationIgnored private var subscriptionTypes: [String: String] = [:]
-    /// Per-account "don't ask before" times from 429 responses. Persisted, so a restart
-    /// doesn't hit the API again while it is still rate limiting us.
-    @ObservationIgnored private var retryUntil: [String: Date] = UsageStore.loadRetryUntil() {
-        didSet { UsageStore.saveRetryUntil(retryUntil) }
-    }
-    @ObservationIgnored private var throttleCount: [String: Int] = [:]
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
     @ObservationIgnored private var settingsObserver: NSObjectProtocol?
@@ -40,6 +34,7 @@ final class UsageStore {
             all[s.account.service] = s
             services.append(s.account.service)
         }
+        lastRefresh = all.values.compactMap(\.updatedAt).max()
         publish()
     }
 
@@ -49,7 +44,7 @@ final class UsageStore {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                let interval = max(30, AppSettings.shared.pollInterval)
+                let interval = max(FetchGate.minPollInterval, AppSettings.shared.pollInterval)
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
             }
         }
@@ -79,12 +74,14 @@ final class UsageStore {
         settingsObserver = nil
     }
 
-    /// Rediscover keychain accounts and fetch usage for all of them.
-    func refresh() async {
+    /// Rediscover keychain accounts and fetch usage for those the request budget allows.
+    /// Automatic callers (launch, poll, wake, settings) are limited to one request per poll
+    /// interval; `force` (the user's "Refresh now") only to `FetchGate.manualGap`.
+    func refresh(force: Bool = false) async {
         if demo { lastRefresh = Date(); return }
         guard !isRefreshing else { return }
         isRefreshing = true
-        defer { isRefreshing = false; lastRefresh = Date() }
+        defer { isRefreshing = false }
 
         let discovered = await Keychain.discoverServices()
         // If discovery fails entirely (empty), keep cached accounts rather than wiping the UI.
@@ -94,8 +91,17 @@ final class UsageStore {
         }
 
         let now = Date()
-        let toFetch = services.filter { (retryUntil[$0] ?? .distantPast) <= now }
-        let needProfile = Set(services.filter { profiles[$0] == nil })
+        // Re-read from disk: `--dump` runs share the same budget.
+        var states = FetchGate.load()
+        let minGap = force ? FetchGate.manualGap
+                           : FetchGate.automaticGap(pollInterval: AppSettings.shared.pollInterval)
+        let decisions = Dictionary(uniqueKeysWithValues: services.map {
+            ($0, FetchGate.decide(states[$0], now: now, minGap: minGap))
+        })
+        let toFetch = services.filter { decisions[$0] == .allowed }
+        let needProfile = Set(toFetch.filter {
+            FetchGate.needsProfile(states[$0], hasCachedIdentity: all[$0]?.account.email != nil, now: now)
+        })
 
         let results = await withTaskGroup(of: AccountFetchResult.self) { group -> [AccountFetchResult] in
             for svc in toFetch {
@@ -107,10 +113,21 @@ final class UsageStore {
             return out
         }
 
-        for r in results { apply(r) }
-        // Accounts skipped because of a pending Retry-After show as throttled, not as loading.
-        for svc in services where !toFetch.contains(svc) && all[svc]?.status == .loading {
-            all[svc]?.status = .rateLimited
+        for r in results {
+            apply(r)
+            var st = states[r.service] ?? FetchState()
+            FetchGate.record(&st, requested: r.requested, serverRetryUntil: r.retryUntil,
+                             gotProfile: r.profile != nil, now: Date())
+            states[r.service] = st
+        }
+        if !results.isEmpty { FetchGate.save(states) }
+        // Skipped accounts still showing the launch placeholder get a real status.
+        for svc in services where all[svc]?.status == .loading {
+            switch decisions[svc] {
+            case .throttled: all[svc]?.status = .rateLimited
+            case .tooSoon: if all[svc]?.updatedAt != nil { all[svc]?.status = .ok }
+            default: break
+            }
         }
         // Ensure every discovered service has a snapshot.
         for svc in services where all[svc] == nil {
@@ -118,37 +135,16 @@ final class UsageStore {
                                        status: .loading, updatedAt: nil)
         }
         publish()
+        // "Synced" means: age of the newest real data, not of the last attempt.
+        lastRefresh = all.values.compactMap(\.updatedAt).max()
         SnapshotCache.save(services.compactMap { all[$0] })
     }
 
     // MARK: - Private
 
-    private static let retryKey = "retryUntil"
-
-    private static func loadRetryUntil() -> [String: Date] {
-        let raw = UserDefaults.standard.dictionary(forKey: retryKey) as? [String: Double] ?? [:]
-        let now = Date()
-        return raw.mapValues { Date(timeIntervalSince1970: $0) }.filter { $0.value > now }
-    }
-
-    private static func saveRetryUntil(_ value: [String: Date]) {
-        UserDefaults.standard.set(value.mapValues { $0.timeIntervalSince1970 }, forKey: retryKey)
-    }
-
     private func apply(_ r: AccountFetchResult) {
         if let p = r.profile { profiles[r.service] = p }
         if let st = r.subscriptionType { subscriptionTypes[r.service] = st }
-        if let until = r.retryUntil {
-            // The server's Retry-After can be very short while it keeps answering 429.
-            // Back off exponentially on repeated 429s: 1, 2, 4 … up to 30 minutes.
-            let n = (throttleCount[r.service] ?? 0) + 1
-            throttleCount[r.service] = n
-            let backoff = min(1800, 60 * pow(2, Double(n - 1)))
-            retryUntil[r.service] = max(until, Date().addingTimeInterval(backoff))
-        } else {
-            throttleCount[r.service] = nil
-            retryUntil[r.service] = nil
-        }
 
         var snap = all[r.service] ?? AccountSnapshot(account: AccountInfo(service: r.service), meters: [],
                                                      extraUsage: nil, status: .loading, updatedAt: nil)
@@ -202,12 +198,34 @@ enum DumpCommand {
             print("No \"\(Keychain.servicePrefix)*\" keychain items found.")
             return 0
         }
+        // Same request budget as the app: a blocked account prints why instead of asking again.
+        var states = FetchGate.load()
+        let now = Date()
+        let tf = DateFormatter()
+        tf.dateFormat = "HH:mm:ss"
+        var allowed: [String] = []
+        for svc in services {
+            switch FetchGate.decide(states[svc], now: now, minGap: FetchGate.manualGap) {
+            case .allowed: allowed.append(svc)
+            case .throttled(let until):
+                print("service: \(svc)\n  not asked: rate limited until \(tf.string(from: until))\n")
+            case .tooSoon(let until):
+                print("service: \(svc)\n  not asked: last request was moments ago, try again at \(tf.string(from: until))\n")
+            }
+        }
         let results = await withTaskGroup(of: AccountFetchResult.self) { group -> [AccountFetchResult] in
-            for svc in services { group.addTask { await AccountFetcher.fetch(service: svc, needProfile: true) } }
+            for svc in allowed { group.addTask { await AccountFetcher.fetch(service: svc, needProfile: true) } }
             var out: [AccountFetchResult] = []
             for await r in group { out.append(r) }
             return out
         }
+        for r in results {
+            var st = states[r.service] ?? FetchState()
+            FetchGate.record(&st, requested: r.requested, serverRetryUntil: r.retryUntil,
+                             gotProfile: r.profile != nil, now: Date())
+            states[r.service] = st
+        }
+        if !results.isEmpty { FetchGate.save(states) }
         func rank(_ svc: String) -> (Int, Int) {
             (svc == Keychain.defaultService ? 0 : 1, services.firstIndex(of: svc) ?? 0)
         }
