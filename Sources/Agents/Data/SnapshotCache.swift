@@ -37,6 +37,7 @@ enum SnapshotCache {
     }
 
     /// Loaded snapshots have status `.loading` and no alias (store applies aliases).
+    /// The file is treated as untrusted: numbers and dates are brought into range.
     static func load() -> [AccountSnapshot] {
         guard let data = try? Data(contentsOf: url) else { return [] }
         let dec = JSONDecoder()
@@ -46,15 +47,17 @@ enum SnapshotCache {
             AccountSnapshot(
                 account: AccountInfo(service: c.service, email: c.email, displayName: c.displayName, plan: c.plan),
                 meters: c.meters.map {
-                    Meter(id: $0.id, label: $0.label, title: $0.title, percent: $0.percent, resetsAt: $0.resetsAt,
+                    Meter(id: $0.id, label: $0.label, title: $0.title, percent: UsageMapper.percent($0.percent),
+                          resetsAt: UsageMapper.date($0.resetsAt),
                           severity: Severity(rawValue: $0.severity) ?? .normal, isActive: $0.isActive)
                 },
                 extraUsage: c.extra.map {
-                    ExtraUsage(isEnabled: $0.isEnabled, utilization: $0.utilization, usedCredits: $0.usedCredits,
-                               monthlyLimit: $0.monthlyLimit, currency: $0.currency)
+                    ExtraUsage(isEnabled: $0.isEnabled, utilization: $0.utilization.map(UsageMapper.percent),
+                               usedCredits: UsageMapper.amount($0.usedCredits),
+                               monthlyLimit: UsageMapper.amount($0.monthlyLimit), currency: $0.currency)
                 },
                 status: .loading,
-                updatedAt: c.updatedAt)
+                updatedAt: UsageMapper.date(c.updatedAt))
         }
     }
 

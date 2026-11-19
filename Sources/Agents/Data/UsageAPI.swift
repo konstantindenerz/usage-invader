@@ -194,6 +194,34 @@ enum UsageAPI {
 // MARK: - Mapping
 
 enum UsageMapper {
+    // MARK: Untrusted input
+    // Values from the API and from the cache file are formatted with `Int(...)` in the UI,
+    // which traps on out-of-range numbers, and strings are printed to the terminal by `--dump`.
+
+    /// Percent used, kept in a range the UI can format.
+    static func percent(_ v: Double) -> Double {
+        v.isFinite ? min(max(v, 0), 999) : 0
+    }
+
+    /// Money amount; nil when missing or not a number.
+    static func amount(_ v: Double?) -> Double? {
+        guard let v, v.isFinite else { return nil }
+        return min(max(v, 0), 1_000_000_000)
+    }
+
+    /// Date within a plausible range (1970 … year 5138); nil otherwise.
+    static func date(_ d: Date?) -> Date? {
+        guard let d, (0...100_000_000_000).contains(d.timeIntervalSince1970) else { return nil }
+        return d
+    }
+
+    /// Text without control characters, capped in length.
+    static func text(_ s: String?) -> String? {
+        guard let s else { return nil }
+        let scalars = s.unicodeScalars.filter { $0.properties.generalCategory != .control }
+        return String(String(String.UnicodeScalarView(scalars)).prefix(200))
+    }
+
     static func parseDate(_ s: String?) -> Date? {
         guard let s, !s.isEmpty else { return nil }
         let f1 = ISO8601DateFormatter()
@@ -226,7 +254,7 @@ enum UsageMapper {
         var out: [(rank: Int, idx: Int, meter: Meter)] = []
         if let limits = r.limits, !limits.isEmpty {
             for (i, l) in limits.enumerated() {
-                guard let kind = l.kind, let pct = l.percent else { continue }
+                guard let kind = text(l.kind), let pct = l.percent.map(Self.percent) else { continue }
                 let resets = parseDate(l.resets_at)
                 let sev = severity(l.severity, percent: pct)
                 let active = l.is_active ?? false
@@ -238,7 +266,7 @@ enum UsageMapper {
                     out.append((1, i, Meter(id: "weekly_all", label: "WEEK", title: "Current week (all models)",
                                             percent: pct, resetsAt: resets, severity: sev, isActive: active)))
                 } else if k == "weekly_scoped" {
-                    let name = l.scope?.model?.display_name ?? l.scope?.surface ?? l.scope?.model?.id ?? "scoped"
+                    let name = text(l.scope?.model?.display_name ?? l.scope?.surface ?? l.scope?.model?.id) ?? "scoped"
                     out.append((2, i, Meter(id: "weekly_scoped:\(name)", label: shortLabel(name),
                                             title: "Current week (\(name))",
                                             percent: pct, resetsAt: resets, severity: sev, isActive: active)))
@@ -256,7 +284,7 @@ enum UsageMapper {
                 (r.seven_day_opus, "weekly_scoped:Opus", "OPUS", "Current week (Opus)", 2),
             ]
             for (i, (w, id, label, title, rank)) in legacy.enumerated() {
-                guard let w, let pct = w.utilization else { continue }
+                guard let w, let pct = w.utilization.map(Self.percent) else { continue }
                 out.append((rank, i, Meter(id: id, label: label, title: title, percent: pct,
                                            resetsAt: parseDate(w.resets_at),
                                            severity: severity(percent: pct), isActive: false)))
@@ -276,8 +304,9 @@ enum UsageMapper {
 
     static func extra(from r: UsageResponse) -> ExtraUsage? {
         guard let e = r.extra_usage, e.is_enabled == true else { return nil }
-        return ExtraUsage(isEnabled: true, utilization: e.utilization, usedCredits: e.used_credits,
-                          monthlyLimit: e.monthly_limit, currency: e.currency)
+        return ExtraUsage(isEnabled: true, utilization: e.utilization.map(Self.percent),
+                          usedCredits: amount(e.used_credits), monthlyLimit: amount(e.monthly_limit),
+                          currency: text(e.currency))
     }
 }
 
@@ -315,7 +344,7 @@ enum AccountFetcher {
             result.status = .error("no credentials")
             return result
         }
-        result.subscriptionType = creds.subscriptionType
+        result.subscriptionType = UsageMapper.text(creds.subscriptionType)
         if creds.isExpired {
             result.status = .tokenExpired
             return result
@@ -343,9 +372,9 @@ enum AccountFetcher {
         let p = await profileTask
         if let p {
             result.profile = AccountProfile(
-                email: p.account?.email,
-                displayName: p.account?.display_name ?? p.account?.full_name,
-                plan: planName(p, subscription: creds.subscriptionType))
+                email: UsageMapper.text(p.account?.email),
+                displayName: UsageMapper.text(p.account?.display_name ?? p.account?.full_name),
+                plan: UsageMapper.text(planName(p, subscription: creds.subscriptionType)))
         }
         return result
     }
