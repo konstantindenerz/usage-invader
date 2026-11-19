@@ -58,6 +58,7 @@ struct OverlayRootView: View {
                 case .instrument: CollapsedStrip(store: store)
                 }
             }
+            .padding(.vertical, Layout.collapsedPadding(width: stripW))
             .frame(width: stripW, height: collapsedH)
             .modifier(GlitchModifier(amount: isExpanded ? 1 : 0))
             .allowsHitTesting(!isExpanded)
@@ -101,15 +102,23 @@ enum Layout {
     static func height(for snapshots: [AccountSnapshot]) -> CGFloat {
         let collapsed = max(InvaderStrip.contentHeight(snapshots, width: collapsedWidth),
                             CollapsedStrip.contentHeight(snapshots))
+            + 2 * collapsedPadding(width: collapsedWidth)
         return ceil(max(collapsed, expandedContentHeight(snapshots)) + 2 * maxFlare)
     }
 
     /// Collapsed notch body height for the given strip width and skin.
     static func collapsedContentHeight(_ snapshots: [AccountSnapshot], width: CGFloat, style: StripStyle) -> CGFloat {
+        let content: CGFloat
         switch style {
-        case .invader: return InvaderStrip.contentHeight(snapshots, width: width)
-        case .instrument: return CollapsedStrip.contentHeight(snapshots)
+        case .invader: content = InvaderStrip.contentHeight(snapshots, width: width)
+        case .instrument: content = CollapsedStrip.contentHeight(snapshots)
         }
+        return content + 2 * collapsedPadding(width: width)
+    }
+
+    /// Breathing room between the collapsed content and the notch body's top/bottom edge.
+    static func collapsedPadding(width: CGFloat) -> CGFloat {
+        width < 26 ? 6 : 10
     }
 
     /// Expanded panel body height.
