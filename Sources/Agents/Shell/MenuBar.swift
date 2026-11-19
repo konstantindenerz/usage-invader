@@ -1,12 +1,15 @@
 import AppKit
 import Observation
 import ServiceManagement
+import SwiftUI
 
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
     private let store: UsageStore
     private let actions: AppActions
     private let item: NSStatusItem
+    private let menu = NSMenu()
+    private lazy var popover: NSPopover = makePopover()
 
     init(store: UsageStore, actions: AppActions) {
         self.store = store
@@ -14,11 +17,49 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
-        let menu = NSMenu()
         menu.delegate = self
-        item.menu = menu
+        // Left click: usage panel as popover. Right / ctrl click: the menu.
+        if let button = item.button {
+            button.target = self
+            button.action = #selector(statusClicked(_:))
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
         updateButton()
         observeStore()
+    }
+
+    @objc private func statusClicked(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        let wantsMenu = event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true
+        if wantsMenu {
+            popover.performClose(nil)
+            item.menu = menu
+            sender.performClick(nil)   // opens the menu attached above
+            item.menu = nil            // detach again so the next left click shows the panel
+        } else if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            showPopover(from: sender)
+        }
+    }
+
+    // MARK: Popover (the expanded panel, also available while the overlay is hidden)
+
+    private func makePopover() -> NSPopover {
+        let p = NSPopover()
+        p.behavior = .transient
+        p.animates = true
+        p.appearance = NSAppearance(named: .darkAqua)
+        p.contentViewController = NSHostingController(rootView: MenuBarPanel(store: store))
+        return p
+    }
+
+    private func showPopover(from button: NSStatusBarButton) {
+        Task { await store.refresh() }
+        popover.contentSize = NSSize(width: Layout.expandedWidth,
+                                     height: Layout.expandedContentHeight(store.snapshots))
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKey()
     }
 
     // MARK: Status button
@@ -30,9 +71,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func updateButton() {
         guard let button = item.button else { return }
-        let image = NSImage(systemSymbolName: "chart.bar.fill", accessibilityDescription: "Agents")
-        image?.isTemplate = true
-        button.image = image
+        button.image = Self.invaderIcon
         button.imagePosition = .imageLeading
         if let r = lowestRemaining {
             button.attributedTitle = NSAttributedString(
@@ -49,8 +88,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             _ = store.snapshots
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.updateButton()
-                self?.observeStore()
+                guard let self else { return }
+                self.updateButton()
+                if self.popover.isShown {
+                    self.popover.contentSize = NSSize(width: Layout.expandedWidth,
+                                                      height: Layout.expandedContentHeight(self.store.snapshots))
+                }
+                self.observeStore()
             }
         }
     }
@@ -180,6 +224,25 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return i
     }
 
+    /// The collapsed strip's alien as a crisp template image for the menu bar.
+    static let invaderIcon: NSImage = {
+        let rows = InvaderArt.alien[0]
+        let px: CGFloat = 2
+        let size = NSSize(width: CGFloat(rows[0].count) * px, height: CGFloat(rows.count) * px)
+        let img = NSImage(size: size, flipped: true) { _ in
+            NSColor.black.setFill()
+            for (r, row) in rows.enumerated() {
+                for (c, ch) in row.enumerated() where ch == "X" {
+                    NSRect(x: CGFloat(c) * px, y: CGFloat(r) * px, width: px, height: px).fill()
+                }
+            }
+            return true
+        }
+        img.isTemplate = true
+        img.accessibilityDescription = "Agents"
+        return img
+    }()
+
     static var isAppBundle: Bool { Bundle.main.bundleURL.pathExtension == "app" }
 
     // MARK: Actions
@@ -235,5 +298,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(Self.addAccountCommand, forType: .string)
         }
+    }
+}
+
+/// Expanded usage panel shown from the menu bar item.
+private struct MenuBarPanel: View {
+    let store: UsageStore
+    var body: some View {
+        ExpandedPanel(store: store)
+            .frame(width: Layout.expandedWidth, height: Layout.expandedContentHeight(store.snapshots), alignment: .top)
+            .background(Theme.bg)
     }
 }
