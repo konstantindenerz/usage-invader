@@ -273,8 +273,8 @@ final class OverlayController {
     }
 }
 
-/// Hover/layout tracing, enabled with AGENTS_DEBUG=1.
+/// Hover/layout tracing, enabled with USAGE_INVADER_DEBUG=1.
 func debugLog(_ msg: @autoclosure () -> String) {
-    guard ProcessInfo.processInfo.environment["AGENTS_DEBUG"] != nil else { return }
+    guard ProcessInfo.processInfo.environment["USAGE_INVADER_DEBUG"] != nil else { return }
     FileHandle.standardError.write("[\(String(format: "%.3f", Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 100)))] \(msg())\n".data(using: .utf8)!)
 }

@@ -1,4 +1,4 @@
-# Agents
+# Usage Invader
 
 A small macOS overlay (macOS 14+) that shows Claude subscription usage (session / week / model-specific
 weekly limits) for **multiple accounts** as a pixel strip in a warm Mechanoonna look (amber, red only for critical limits)
@@ -9,12 +9,12 @@ details (percentages, reset times). No Dock icon – just the overlay and a menu
 
 ```sh
 swift build                 # debug build
-scripts/build-app.sh        # release → build/Agents.app (ad-hoc signed)
+scripts/build-app.sh        # release → build/UsageInvader.app (ad-hoc signed)
 scripts/run.sh              # build-app + (re)launch
 scripts/run.sh --demo       # launch with demo data
 ```
 
-CLI flags (directly on the binary, e.g. `build/Agents.app/Contents/MacOS/Agents`):
+CLI flags (directly on the binary, e.g. `build/UsageInvader.app/Contents/MacOS/UsageInvader`):
 
 | Flag | Effect |
 |---|---|
@@ -25,7 +25,7 @@ CLI flags (directly on the binary, e.g. `build/Agents.app/Contents/MacOS/Agents`
 ## Multiple accounts
 
 Claude Code creates one keychain entry per config directory
-(`Claude Code-credentials`, `Claude Code-credentials-<hash>`). Agents finds all of them automatically.
+(`Claude Code-credentials`, `Claude Code-credentials-<hash>`). Usage Invader finds all of them automatically.
 
 Add a new account:
 
@@ -58,7 +58,7 @@ The invader icon in the menu bar shows the lowest remaining percentage.
 - **Fit to free margin** – strip only as wide as the free gap next to the windows (default: off, full 25.5 pt, may overlap)
 - **Screen** – which display the strip sits on (default: main display with the menu bar)
 - **Settings…** – aliases, visible/hidden, order, poll interval (2/5/10 min, default 5 min), scanlines
-- **Launch at login** (only from `Agents.app`, via `SMAppService`)
+- **Launch at login** (only from `UsageInvader.app`, via `SMAppService`)
 - **Add account…** – instructions + "Copy command"
 - **Quit**
 
@@ -66,10 +66,10 @@ The invader icon in the menu bar shows the lowest remaining percentage.
 
 - **Gentle on the API:** automatically, each account is asked at most once per poll interval
   (at least 2 min apart), even across restarts. "Refresh now" and `--dump` at most every 20 s.
-  If the API answers 429, Agents pauses 1, 2, 4 … up to 30 min and shows the last values meanwhile.
+  If the API answers 429, Usage Invader pauses 1, 2, 4 … up to 30 min and shows the last values meanwhile.
 - **Read-only:** tokens are read from the keychain (via `/usr/bin/security`) and **never** refreshed
-  or written. If a token has expired, Agents shows the last values as "stale" –
+  or written. If a token has expired, Usage Invader shows the last values as "stale" –
   just start `claude` briefly in that account and Claude Code renews the token.
 - Data source: `https://api.anthropic.com/api/oauth/usage` (the same one `/usage` in Claude Code uses).
 - On first access macOS may ask for keychain permission for `security` – choose "Always Allow".
-- Pixel font: Silkscreen (SIL Open Font License, see `Sources/Agents/Resources/OFL.txt`).
+- Pixel font: Silkscreen (SIL Open Font License, see `Sources/UsageInvader/Resources/OFL.txt`).

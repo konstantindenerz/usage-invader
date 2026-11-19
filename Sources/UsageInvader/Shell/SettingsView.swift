@@ -159,7 +159,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
         super.init()
-        window.title = "Agents Settings"
+        window.title = "Usage Invader Settings"
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = NSColor(red: 0x1C/255.0, green: 0x1B/255.0, blue: 0x19/255.0, alpha: 1)

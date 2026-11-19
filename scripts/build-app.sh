@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Builds build/Agents.app (release, ad-hoc signed with the hardened runtime).
+# Builds build/UsageInvader.app (release, ad-hoc signed with the hardened runtime).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME=Agents
+APP_NAME=UsageInvader
+DISPLAY_NAME="Usage Invader"
 APP="build/${APP_NAME}.app"
 RES_BUNDLE="${APP_NAME}_${APP_NAME}.bundle"
 
@@ -29,9 +30,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>com.kode.agents</string>
-  <key>CFBundleName</key><string>${APP_NAME}</string>
-  <key>CFBundleDisplayName</key><string>${APP_NAME}</string>
+  <key>CFBundleIdentifier</key><string>com.kode.usageinvader</string>
+  <key>CFBundleName</key><string>${DISPLAY_NAME}</string>
+  <key>CFBundleDisplayName</key><string>${DISPLAY_NAME}</string>
   <key>CFBundleExecutable</key><string>${APP_NAME}</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct AgentsMain {
+struct UsageInvaderMain {
     static func main() {
         let args = CommandLine.arguments
 
@@ -16,7 +16,7 @@ struct AgentsMain {
 
         if let i = args.firstIndex(of: "--snapshot") {
             guard i + 1 < args.count else {
-                FileHandle.standardError.write("usage: Agents --snapshot <path.png>\n".data(using: .utf8)!)
+                FileHandle.standardError.write("usage: UsageInvader --snapshot <path.png>\n".data(using: .utf8)!)
                 exit(2)
             }
             let path = (args[i + 1] as NSString).expandingTildeInPath

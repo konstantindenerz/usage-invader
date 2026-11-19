@@ -5,7 +5,7 @@ enum CacheFiles {
     static func url(_ name: String) -> URL {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Caches")
-        return base.appendingPathComponent("Agents").appendingPathComponent(name)
+        return base.appendingPathComponent("UsageInvader").appendingPathComponent(name)
     }
 
     /// Writes atomically, readable by the owner only: the snapshot holds the account email and plan.

@@ -151,7 +151,7 @@ enum UsageAPI {
         var req = URLRequest(url: base.appendingPathComponent(path))
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
-        req.setValue("Agents/0.1", forHTTPHeaderField: "User-Agent")
+        req.setValue("UsageInvader/0.1", forHTTPHeaderField: "User-Agent")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         let data: Data
         let resp: URLResponse

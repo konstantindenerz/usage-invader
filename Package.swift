@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Agents",
+    name: "UsageInvader",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "Agents",
-            path: "Sources/Agents",
+            name: "UsageInvader",
+            path: "Sources/UsageInvader",
             resources: [.copy("Resources")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         )

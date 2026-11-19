@@ -81,7 +81,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         } else {
             button.title = ""
         }
-        button.toolTip = "Agents"
+        button.toolTip = "Usage Invader"
     }
 
     private func observeStore() {
@@ -164,13 +164,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         } else {
             login.isEnabled = false
-            login.toolTip = "Only available when running from Agents.app"
+            login.toolTip = "Only available when running from UsageInvader.app"
         }
         items.append(login)
 
         items.append(make("Add account…", #selector(addAccount)))
         items.append(.separator())
-        items.append(make("Quit Agents", #selector(quit), key: "q"))
+        items.append(make("Quit Usage Invader", #selector(quit), key: "q"))
         return items
     }
 
@@ -240,7 +240,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return true
         }
         img.isTemplate = true
-        img.accessibilityDescription = "Agents"
+        img.accessibilityDescription = "Usage Invader"
         return img
     }()
 
@@ -272,7 +272,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
             alert.messageText = "Launch at login failed"
-            alert.informativeText = "\(error.localizedDescription)\n\nIf macOS asks for approval, enable Agents under System Settings → General → Login Items."
+            alert.informativeText = "\(error.localizedDescription)\n\nIf macOS asks for approval, enable Usage Invader under System Settings → General → Login Items."
             alert.runModal()
         }
     }

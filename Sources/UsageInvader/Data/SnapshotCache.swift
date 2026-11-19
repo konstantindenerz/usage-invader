@@ -1,4 +1,4 @@
-// Persists last good snapshots to ~/Library/Caches/Agents/last.json.
+// Persists last good snapshots to ~/Library/Caches/UsageInvader/last.json.
 // Codable mirrors live here so Core models stay free of Codable.
 import Foundation
 

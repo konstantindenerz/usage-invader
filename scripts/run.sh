@@ -3,10 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 "$(dirname "$0")/build-app.sh"
-pkill -x Agents 2>/dev/null || true
+pkill -x UsageInvader 2>/dev/null || true
 sleep 0.5
 if [ $# -gt 0 ]; then
-  open build/Agents.app --args "$@"
+  open build/UsageInvader.app --args "$@"
 else
-  open build/Agents.app
+  open build/UsageInvader.app
 fi
