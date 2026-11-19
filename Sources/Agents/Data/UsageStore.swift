@@ -19,6 +19,8 @@ final class UsageStore {
     @ObservationIgnored private var services: [String] = []
     @ObservationIgnored private var profiles: [String: AccountProfile] = [:]
     @ObservationIgnored private var subscriptionTypes: [String: String] = [:]
+    /// Earliest time a held-back automatic request may go out (nil when nothing is waiting).
+    @ObservationIgnored private var nextAllowed: Date?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
     @ObservationIgnored private var settingsObserver: NSObjectProtocol?
@@ -44,7 +46,12 @@ final class UsageStore {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                let interval = max(FetchGate.minPollInterval, AppSettings.shared.pollInterval)
+                var interval = max(FetchGate.minPollInterval, AppSettings.shared.pollInterval)
+                // If the budget held a request back (e.g. right after a restart), come back as
+                // soon as it opens instead of waiting a full interval.
+                if let next = self?.nextAllowed {
+                    interval = min(interval, max(5, next.timeIntervalSinceNow + 1))
+                }
                 try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
             }
         }
@@ -99,6 +106,10 @@ final class UsageStore {
             ($0, FetchGate.decide(states[$0], now: now, minGap: minGap))
         })
         let toFetch = services.filter { decisions[$0] == .allowed }
+        nextAllowed = decisions.values.compactMap { d -> Date? in
+            if case .tooSoon(let until) = d { return until }
+            return nil
+        }.min()
         let needProfile = Set(toFetch.filter {
             FetchGate.needsProfile(states[$0], hasCachedIdentity: all[$0]?.account.email != nil, now: now)
         })
