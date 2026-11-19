@@ -129,7 +129,7 @@ final class AppSettings {
         hidden = Set(d.stringArray(forKey: "hidden") ?? [])
         order = d.stringArray(forKey: "order") ?? []
         let p = d.double(forKey: "pollInterval")
-        pollInterval = p > 0 ? p : 120
+        pollInterval = p > 0 ? p : 300
         scanlines = d.object(forKey: "scanlines") as? Bool ?? true
         stripStyle = StripStyle(rawValue: d.string(forKey: "stripStyle") ?? "") ?? .invader
     }

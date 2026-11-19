@@ -53,9 +53,9 @@ struct SettingsView: View {
             Picker("", selection: Binding(
                 get: { settings.pollInterval },
                 set: { settings.pollInterval = $0; onChange(.pollInterval) })) {
-                Text("60s").tag(TimeInterval(60))
-                Text("120s").tag(TimeInterval(120))
-                Text("300s").tag(TimeInterval(300))
+                Text("2m").tag(TimeInterval(120))
+                Text("5m").tag(TimeInterval(300))
+                Text("10m").tag(TimeInterval(600))
             }
             .pickerStyle(.segmented)
             .labelsHidden()

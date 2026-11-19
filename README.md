@@ -57,7 +57,7 @@ The invader icon in the menu bar shows the lowest remaining percentage.
 - **Style** – skin of the collapsed strip: **Invader** (default) or **Instrument**
 - **Fit to free margin** – strip only as wide as the free gap next to the windows (default: off, full 34 pt, may overlap)
 - **Screen** – which display the strip sits on (default: main display with the menu bar)
-- **Settings…** – aliases, visible/hidden, order, poll interval (60/120/300 s), scanlines
+- **Settings…** – aliases, visible/hidden, order, poll interval (2/5/10 min, default 5 min), scanlines
 - **Launch at login** (only from `Agents.app`, via `SMAppService`)
 - **Add account…** – instructions + "Copy command"
 - **Quit**
