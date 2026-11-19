@@ -2,7 +2,7 @@
 
 [![build](https://github.com/konstantindenerz/usage-invader/actions/workflows/build.yml/badge.svg)](https://github.com/konstantindenerz/usage-invader/actions/workflows/build.yml)
 
-A small macOS overlay that shows how much of your Claude subscription is left, for one or
+A small macOS overlay that shows how much of your subscription usage is left, for one or
 several accounts, as a pixel strip on the right edge of the screen. Hover the strip and it
 expands into a panel with percentages, reset countdowns and your burn pace.
 
@@ -16,13 +16,13 @@ expands into a panel with percentages, reset countdowns and your burn pace.
 ## Features
 
 - **All limits at a glance:** current session (5 h), current week, and model-specific weekly limits.
-- **Multiple accounts:** every Claude Code login on the machine is found automatically.
+- **Multiple accounts:** every signed-in account on the machine is found automatically.
 - **Pace:** shows whether you are ahead of or behind an even burn, and when a limit runs dry
   at the current rate.
 - **Stays out of the way:** no Dock icon, a strip of 25.5 pt at the screen edge, plus a menu bar
   item that shows the lowest remaining percentage.
 - **Two skins** for the collapsed strip: Invader (default) and Instrument.
-- **Read-only and local:** reads the token Claude Code already stores, talks only to
+- **Read-only and local:** reads the token already stored in your keychain, talks only to
   `api.anthropic.com`, has no third-party dependencies and no telemetry.
 
 ## Screenshots
@@ -40,7 +40,7 @@ All images are rendered from demo data with `--readme-shots`.
 ## Requirements
 
 - macOS 14 or later
-- [Claude Code](https://claude.com/claude-code), signed in at least once (`/login`)
+- [Claude Code](https://claude.com/claude-code) ("the CLI" below), signed in at least once (`/login`)
 - To build from source: a Swift 6 toolchain (Xcode 16 or later)
 
 ## Install
@@ -66,7 +66,7 @@ cd usage-invader
 scripts/run.sh              # builds build/UsageInvader.app and launches it
 ```
 
-On first launch macOS may ask whether `security` may access the Claude Code keychain item.
+On first launch macOS may ask whether `security` may access the CLI's keychain item.
 Choose **Always Allow**; see [Security and privacy](#security-and-privacy) for what that means.
 
 ## Usage
@@ -106,10 +106,9 @@ Ctrl-click opens the menu.
 
 ## Multiple accounts
 
-Claude Code keeps one keychain entry per config directory (`Claude Code-credentials`,
-`Claude Code-credentials-<hash>`). Usage Invader finds all of them.
+Every config directory of the CLI has its own keychain entry. Usage Invader finds all of them.
 
-To add an account, start Claude Code with its own config directory and sign in:
+To add an account, start the CLI with its own config directory and sign in:
 
 ```sh
 CLAUDE_CONFIG_DIR=~/.claude-work claude    # then type /login
@@ -124,7 +123,7 @@ alias claude-work='CLAUDE_CONFIG_DIR=~/.claude-work claude'
 The account appears on the next refresh. Give it a name, hide it or reorder it under
 **Settings…**.
 
-Accounts are per machine. On another Mac, sign in to Claude Code there; nothing is synced.
+Accounts are per machine. On another Mac, sign in there; nothing is synced.
 
 ## Command line
 
@@ -145,8 +144,8 @@ Run these on the binary, e.g. `build/UsageInvader.app/Contents/MacOS/UsageInvade
 1. `/usr/bin/security dump-keychain` lists keychain metadata; entries whose service starts with
    `Claude Code-credentials` are the accounts.
 2. `/usr/bin/security find-generic-password` reads the OAuth token of each account.
-3. The app requests `https://api.anthropic.com/api/oauth/usage` (the source behind `/usage` in
-   Claude Code) and, at most once a day, `/api/oauth/profile` for the email and plan.
+3. The app requests `https://api.anthropic.com/api/oauth/usage` (the source behind the CLI's
+   `/usage` command) and, at most once a day, `/api/oauth/profile` for the email and plan.
 
 Requests are budgeted per account: one automatic request per poll interval (never less than
 2 minutes apart, also across restarts), and at most one every 20 seconds for **Refresh now** and
@@ -154,7 +153,7 @@ Requests are budgeted per account: one automatic request per poll interval (neve
 the last values.
 
 Tokens are never refreshed or written. If one has expired, the account is shown as stale; start
-`claude` in that account once and Claude Code renews it.
+`claude` in that account once and the token is renewed.
 
 ## Security and privacy
 
@@ -163,11 +162,11 @@ Tokens are never refreshed or written. If one has expired, the account is shown 
 - **Local data:** `~/Library/Caches/UsageInvader/` holds the last usage values with the account
   email, name and plan (`last.json`) and the request budget (`fetch-state.json`), readable by
   your user only. Settings live in the `com.kode.usageinvader` defaults domain.
-- **Trust model:** once `security` is allowed to read the Claude Code keychain item, every
-  process running as your user can read that token the same way. Claude Code itself relies on
+- **Trust model:** once `security` is allowed to read the CLI's keychain item, every
+  process running as your user can read that token the same way. The CLI itself relies on
   this; Usage Invader does not widen it.
 - **Keychain listing:** discovery reads the metadata (not the secrets) of all keychain items and
-  keeps only the Claude Code entries.
+  keeps only the matching entries.
 - **Window positions:** *Fit to free margin* reads the bounds of on-screen windows. It does not
   read their titles or contents and needs no Screen Recording permission.
 - **Build:** no third-party dependencies. The bundle is ad-hoc signed with the hardened runtime
@@ -176,7 +175,7 @@ Tokens are never refreshed or written. If one has expired, the account is shown 
 ## Disclaimer
 
 Usage Invader is not affiliated with or endorsed by Anthropic. Claude is a trademark of
-Anthropic. The app relies on an undocumented endpoint and on the credentials Claude Code stores
+Anthropic. The app relies on an undocumented endpoint and on the credentials the CLI stores
 locally; the endpoint may change or stop working at any time. Use it at your own discretion.
 
 ## Development
