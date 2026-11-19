@@ -74,7 +74,7 @@ struct InvaderGeo {
         tw = narrow ? 4 : 7
         tg = narrow ? 1 : 4
         u = narrow ? 1 : 2
-        L = narrow ? 76 : 84
+        L = 56   // 14 rows of 4pt
         if columns >= 2 {
             let c0 = ix + (iw - (2 * tw + tg)) / 2
             colX = [c0, c0 + tw + tg]

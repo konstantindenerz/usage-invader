@@ -117,9 +117,11 @@ enum Layout {
         return content + 2 * collapsedPadding(width: width)
     }
 
-    /// Breathing room between the collapsed content and the notch body's top/bottom edge.
+    /// Extra room above/below the collapsed content so that the distance from the notch body's
+    /// edge to the content equals the side margin (content already starts one `gap` in).
     static func collapsedPadding(width: CGFloat) -> CGFloat {
-        width < 26 ? 6 : 10
+        let side = (width - InvaderGeo(width: width, columns: 1).iw) / 2
+        return max(0, side - InvaderGeo.gap)
     }
 
     /// Expanded panel body height.
