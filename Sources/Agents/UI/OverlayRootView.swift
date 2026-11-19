@@ -71,7 +71,8 @@ struct OverlayRootView: View {
             }
         }
         .overlay {
-            if settings.scanlines { Scanlines() }
+            // Scanlines only on the expanded panel: on the strip they shimmer against the 4pt rows.
+            if settings.scanlines { Scanlines().opacity(isExpanded ? 1 : 0) }
         }
     }
 }

@@ -250,7 +250,8 @@ enum InvaderPainter {
         for (i, m) in columns.enumerated() where i < g.colX.count {
             let x = g.colX[i], tw = g.tw
             let used = min(max(m?.percent ?? 0, 0), 100)
-            let filled = Int((used / 100 * Double(rows)).rounded())
+            // any usage shows at least one row, so the front never hides below one row's resolution
+            let filled = used > 0 ? max(1, Int((used / 100 * Double(rows)).rounded())) : 0
             for r in 0..<rows {
                 let y = y0 + CGFloat(r) * rowH
                 let rect = CGRect(x: x, y: y, width: tw, height: 3)
@@ -276,7 +277,8 @@ enum InvaderPainter {
                         ctx.fill(Path(CGRect(x: x + tw - 1, y: y + 2, width: 1, height: 1)), with: .color(tooth))
                     }
                 } else {
-                    ctx.fill(Path(rect), with: .color(C_track))
+                    // free rows: a clearly visible dim grid (dimmer when stale)
+                    ctx.fill(Path(rect), with: .color(stale ? C_track : Theme.overlay))
                 }
             }
 
