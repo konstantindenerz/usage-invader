@@ -1,75 +1,204 @@
 # Usage Invader
 
-A small macOS overlay (macOS 14+) that shows Claude subscription usage (session / week / model-specific
-weekly limits) for **multiple accounts** as a pixel strip in a warm Mechanoonna look (amber, red only for critical limits)
-at the **right screen edge**. Hovering the strip expands it and shows
-details (percentages, reset times). No Dock icon – just the overlay and a menu bar item.
+[![build](https://github.com/konstantindenerz/claude-usage-invader/actions/workflows/build.yml/badge.svg)](https://github.com/konstantindenerz/claude-usage-invader/actions/workflows/build.yml)
 
-## Build & run
+A small macOS overlay that shows how much of your Claude subscription is left, for one or
+several accounts, as a pixel strip on the right edge of the screen. Hover the strip and it
+expands into a panel with percentages, reset countdowns and your burn pace.
+
+<p align="center">
+  <img src="docs/images/panel.png" width="420" alt="Expanded panel with two accounts: weekly and model limits, reset countdowns and pace">
+</p>
+
+> Usage Invader is an unofficial tool. It is not affiliated with or endorsed by Anthropic.
+> See [Disclaimer](#disclaimer).
+
+## Features
+
+- **All limits at a glance:** current session (5 h), current week, and model-specific weekly limits.
+- **Multiple accounts:** every Claude Code login on the machine is found automatically.
+- **Pace:** shows whether you are ahead of or behind an even burn, and when a limit runs dry
+  at the current rate.
+- **Stays out of the way:** no Dock icon, a strip of 25.5 pt at the screen edge, plus a menu bar
+  item that shows the lowest remaining percentage.
+- **Two skins** for the collapsed strip: Invader (default) and Instrument.
+- **Read-only and local:** reads the token Claude Code already stores, talks only to
+  `api.anthropic.com`, has no third-party dependencies and no telemetry.
+
+## Screenshots
+
+The collapsed strip in both skins, at the widths it can take next to a window:
+
+![Collapsed strip in the Invader and Instrument skins at 12, 16, 25.5 and 34 pt](docs/images/strip.png)
+
+The expanded panel from a fresh week to an exhausted limit:
+
+![Expanded panel in five usage states: fresh, on pace, too fast, critical, empty](docs/images/states.png)
+
+All images are rendered from demo data with `--readme-shots`.
+
+## Requirements
+
+- macOS 14 or later
+- [Claude Code](https://claude.com/claude-code), signed in at least once (`/login`)
+- To build from source: a Swift 6 toolchain (Xcode 16 or later)
+
+## Install
+
+### Download
+
+1. Download `UsageInvader-<version>.zip` from the
+   [latest release](https://github.com/konstantindenerz/claude-usage-invader/releases/latest).
+2. Unzip it and move `UsageInvader.app` to `/Applications`.
+3. The app is ad-hoc signed and not notarized, so Gatekeeper blocks it on first launch.
+   Remove the quarantine flag once, then open it:
+
+   ```sh
+   xattr -dr com.apple.quarantine /Applications/UsageInvader.app
+   open /Applications/UsageInvader.app
+   ```
+
+### Build from source
 
 ```sh
-swift build                 # debug build
-scripts/build-app.sh        # release → build/UsageInvader.app (ad-hoc signed)
-scripts/run.sh              # build-app + (re)launch
-scripts/run.sh --demo       # launch with demo data
+git clone https://github.com/konstantindenerz/claude-usage-invader.git
+cd claude-usage-invader
+scripts/run.sh              # builds build/UsageInvader.app and launches it
 ```
 
-CLI flags (directly on the binary, e.g. `build/UsageInvader.app/Contents/MacOS/UsageInvader`):
+On first launch macOS may ask whether `security` may access the Claude Code keychain item.
+Choose **Always Allow**; see [Security and privacy](#security-and-privacy) for what that means.
 
-| Flag | Effect |
+## Usage
+
+### Overlay
+
+The strip sits on the right edge of the screen. Hover it to expand the panel; right-click or
+Option-click it to open the menu.
+
+Each account shows its meters with the percentage **left**:
+
+| Element | Meaning |
 |---|---|
-| `--dump` | print discovered accounts and parsed meters, then exit |
-| `--snapshot <path.png>` | render the overlay to a PNG, then exit |
-| `--demo` | demo data, no polling |
+| `5H`, `WEEK`, model name | Session limit, weekly limit, model-specific weekly limit |
+| `RST 3D 12H` | Time until the limit resets |
+| `PACE +8` | Percentage points you are ahead of an even burn across the window (negative: too fast) |
+| `DRY IN 1D 12H` | When the limit runs out at the current rate, shown if that is before the reset |
+| `XTRA $6/$50` | Extra usage credits, if enabled for the account |
+
+### Menu bar
+
+The invader icon shows the lowest remaining percentage across all accounts. **Left click**
+opens the usage panel as a popover, even while the overlay is hidden. **Right click** or
+Ctrl-click opens the menu.
+
+### Menu
+
+- One line per account, e.g. `KODE · WEEK 8% left · FABLE 0% left`
+- **Refresh now** (⌘R), **Show/Hide overlay**, **Scanlines**
+- **Fit to free margin:** make the strip only as wide as the gap next to your windows
+  (off by default: full width, may overlap)
+- **Style:** Invader or Instrument
+- **Screen:** which display the strip sits on (default: the main display)
+- **Settings…:** aliases, visibility, order, poll interval (2, 5 or 10 min; default 5), scanlines
+- **Launch at login** (only when running from `UsageInvader.app`)
+- **Add account…:** instructions and a command to copy
 
 ## Multiple accounts
 
-Claude Code creates one keychain entry per config directory
-(`Claude Code-credentials`, `Claude Code-credentials-<hash>`). Usage Invader finds all of them automatically.
+Claude Code keeps one keychain entry per config directory (`Claude Code-credentials`,
+`Claude Code-credentials-<hash>`). Usage Invader finds all of them.
 
-Add a new account:
+To add an account, start Claude Code with its own config directory and sign in:
 
 ```sh
-CLAUDE_CONFIG_DIR=~/.claude-work claude    # then in Claude Code: /login
+CLAUDE_CONFIG_DIR=~/.claude-work claude    # then type /login
 ```
 
-Handy as an alias in `~/.zshrc`:
+An alias in `~/.zshrc` keeps this handy:
 
 ```sh
 alias claude-work='CLAUDE_CONFIG_DIR=~/.claude-work claude'
-alias claude-privat='CLAUDE_CONFIG_DIR=~/.claude-privat claude'
 ```
 
-The account shows up in the overlay on the next refresh. Names (aliases), visibility and
-order are configured under **Settings…**.
+The account appears on the next refresh. Give it a name, hide it or reorder it under
+**Settings…**.
 
-## Menu bar
+Accounts are per machine. On another Mac, sign in to Claude Code there; nothing is synced.
 
-The invader icon in the menu bar shows the lowest remaining percentage.
-**Left click** opens the usage panel as a popover, even while the overlay is hidden.
-**Right click** (or Ctrl-click) opens the menu.
+## Command line
 
-## Menu (right click on the menu bar icon, or right/Option-click on the strip)
+Run these on the binary, e.g. `build/UsageInvader.app/Contents/MacOS/UsageInvader`:
 
-- One line per account, e.g. `KODE · WEEK 8% left · FABLE 0% left`
-- Menu bar text: lowest **remaining** percentage across all accounts
-- **Refresh now** (⌘R), **Show/Hide overlay**, **Scanlines** on/off
-- **Style** – skin of the collapsed strip: **Invader** (default) or **Instrument**
-- **Fit to free margin** – strip only as wide as the free gap next to the windows (default: off, full 25.5 pt, may overlap)
-- **Screen** – which display the strip sits on (default: main display with the menu bar)
-- **Settings…** – aliases, visible/hidden, order, poll interval (2/5/10 min, default 5 min), scanlines
-- **Launch at login** (only from `UsageInvader.app`, via `SMAppService`)
-- **Add account…** – instructions + "Copy command"
-- **Quit**
+| Flag | Effect |
+|---|---|
+| `--demo` | Start with demo data, without polling |
+| `--dump` | Print the discovered accounts and their meters, then exit |
+| `--snapshot <path.png>` | Render a contact sheet of all scenarios and widths, then exit |
+| `--readme-shots <dir>` | Render the README images into a directory, then exit |
+| `--diag` | Print bundle paths, font status and the measured free margin, then exit |
 
-## Notes
+`USAGE_INVADER_DEBUG=1` logs hover and layout events to stderr.
 
-- **Gentle on the API:** automatically, each account is asked at most once per poll interval
-  (at least 2 min apart), even across restarts. "Refresh now" and `--dump` at most every 20 s.
-  If the API answers 429, Usage Invader pauses 1, 2, 4 … up to 30 min and shows the last values meanwhile.
-- **Read-only:** tokens are read from the keychain (via `/usr/bin/security`) and **never** refreshed
-  or written. If a token has expired, Usage Invader shows the last values as "stale" –
-  just start `claude` briefly in that account and Claude Code renews the token.
-- Data source: `https://api.anthropic.com/api/oauth/usage` (the same one `/usage` in Claude Code uses).
-- On first access macOS may ask for keychain permission for `security` – choose "Always Allow".
-- Pixel font: Silkscreen (SIL Open Font License, see `Sources/UsageInvader/Resources/OFL.txt`).
+## How it works
+
+1. `/usr/bin/security dump-keychain` lists keychain metadata; entries whose service starts with
+   `Claude Code-credentials` are the accounts.
+2. `/usr/bin/security find-generic-password` reads the OAuth token of each account.
+3. The app requests `https://api.anthropic.com/api/oauth/usage` (the source behind `/usage` in
+   Claude Code) and, at most once a day, `/api/oauth/profile` for the email and plan.
+
+Requests are budgeted per account: one automatic request per poll interval (never less than
+2 minutes apart, also across restarts), and at most one every 20 seconds for **Refresh now** and
+`--dump`. After an HTTP 429 the app backs off for 1, 2, 4 … up to 30 minutes and keeps showing
+the last values.
+
+Tokens are never refreshed or written. If one has expired, the account is shown as stale; start
+`claude` in that account once and Claude Code renews it.
+
+## Security and privacy
+
+- **Token handling:** the token is read through a pipe, kept in memory, and sent only to
+  `api.anthropic.com` over HTTPS. Redirects are refused. It is never logged, cached or written.
+- **Local data:** `~/Library/Caches/UsageInvader/` holds the last usage values with the account
+  email, name and plan (`last.json`) and the request budget (`fetch-state.json`), readable by
+  your user only. Settings live in the `com.kode.usageinvader` defaults domain.
+- **Trust model:** once `security` is allowed to read the Claude Code keychain item, every
+  process running as your user can read that token the same way. Claude Code itself relies on
+  this; Usage Invader does not widen it.
+- **Keychain listing:** discovery reads the metadata (not the secrets) of all keychain items and
+  keeps only the Claude Code entries.
+- **Window positions:** *Fit to free margin* reads the bounds of on-screen windows. It does not
+  read their titles or contents and needs no Screen Recording permission.
+- **Build:** no third-party dependencies. The bundle is ad-hoc signed with the hardened runtime
+  and is not sandboxed.
+
+## Disclaimer
+
+Usage Invader is not affiliated with or endorsed by Anthropic. Claude is a trademark of
+Anthropic. The app relies on an undocumented endpoint and on the credentials Claude Code stores
+locally; the endpoint may change or stop working at any time. Use it at your own discretion.
+
+## Development
+
+```sh
+swift build                 # debug build
+scripts/build-app.sh        # release build → build/UsageInvader.app
+scripts/run.sh --demo       # rebuild and relaunch with demo data
+swift run UsageInvader --readme-shots docs/images   # regenerate the README images
+```
+
+| Path | Contents |
+|---|---|
+| `Sources/UsageInvader/Core` | Models, settings, pace math |
+| `Sources/UsageInvader/Data` | Keychain access, usage API, request budget, cache |
+| `Sources/UsageInvader/Shell` | App entry, overlay panel, menu bar, settings window |
+| `Sources/UsageInvader/UI` | Strip skins, expanded panel, theme, offline renderer |
+
+Every push builds the app in GitHub Actions and attaches the zipped bundle to the run. Pushing
+a tag such as `v0.2.0` also publishes it as a release.
+
+## License
+
+[MIT](LICENSE). The pixel font is [Silkscreen](https://fonts.google.com/specimen/Silkscreen),
+licensed under the SIL Open Font License (see `Sources/UsageInvader/Resources/OFL.txt`).
