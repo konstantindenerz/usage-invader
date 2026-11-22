@@ -65,9 +65,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: Status button
 
-    /// Lowest REMAINING percent across all visible meters.
+    /// Lowest REMAINING percent across all visible accounts (used-up model limits skipped).
     private var lowestRemaining: Double? {
-        store.snapshots.flatMap(\.meters).map(\.remaining).min()
+        store.snapshots.compactMap(\.meters.headlineRemaining).min()
     }
 
     private func updateButton() {

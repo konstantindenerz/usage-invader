@@ -161,6 +161,24 @@ extension AccountSnapshot {
     }()
 }
 
+// MARK: - Headline number (the single % LEFT shown on the strip and in the menu bar)
+
+extension Meter {
+    /// Weekly limit for one model. When it is used up, the other models keep working.
+    var isModelScoped: Bool { id.hasPrefix("weekly_scoped") }
+}
+
+extension Array where Element == Meter {
+    /// Lowest percent left, ignoring model limits that are used up (they read "0" and would hide
+    /// what is still usable). Session and weekly limits always count, since they block every
+    /// model. 0 when everything is used up; nil without meters.
+    var headlineRemaining: Double? {
+        guard !isEmpty else { return nil }
+        let usable = filter { !($0.isModelScoped && $0.remaining < 0.5) }
+        return (usable.isEmpty ? self : usable).map(\.remaining).min()
+    }
+}
+
 // MARK: - Pace (how fast you burn vs. an even burn across the window)
 
 extension Meter {

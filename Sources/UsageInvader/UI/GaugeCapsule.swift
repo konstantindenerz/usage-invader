@@ -157,8 +157,8 @@ struct GaugeCapsule: View {
         return min(6, max(2, floor((width - 2 * hPad - gap * (n - 1)) / n)))
     }
 
-    /// Lowest remaining across visible meters.
-    private var lowest: Double { meters.map(\.remaining).min() ?? 0 }
+    /// Lowest remaining across visible meters (used-up model limits skipped).
+    private var lowest: Double { meters.headlineRemaining ?? 0 }
     private var level: AlarmLevel { stale ? .normal : AlarmLevel(percent: 100 - lowest) }
     /// Meter that is furthest behind pace (drives the capsule notch).
     private var worstPace: Meter? {

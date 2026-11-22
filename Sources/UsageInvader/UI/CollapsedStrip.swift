@@ -160,7 +160,7 @@ private struct CollapsedAccount: View {
     // MARK: labels (panel face)
 
     @ViewBuilder private var lowestLabel: some View {
-        let lowest = max(0, 100 - snapshot.peak)
+        let lowest = snapshot.meters.headlineRemaining ?? 0
         Group {
             if snapshot.meters.isEmpty {
                 Text("--").font(.pixel(8)).foregroundStyle(Theme.dim)

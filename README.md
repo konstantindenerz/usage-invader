@@ -20,7 +20,8 @@ expands into a panel with percentages, reset countdowns and your burn pace.
 - **Pace:** shows whether you are ahead of or behind an even burn, and when a limit runs dry
   at the current rate.
 - **Stays out of the way:** no Dock icon, a strip of 25.5 pt at the screen edge, plus a menu bar
-  item that shows the lowest remaining percentage.
+  item that shows the lowest remaining percentage. A model limit that is used up is skipped
+  there, since the other models keep working.
 - **Two skins** for the collapsed strip: Invader (default) and Instrument.
 - **Read-only and local:** reads the token already stored in your keychain, talks only to
   `api.anthropic.com`, has no third-party dependencies and no telemetry.
@@ -88,7 +89,8 @@ Each account shows its meters with the percentage **left**:
 
 ### Menu bar
 
-The invader icon shows the lowest remaining percentage across all accounts. **Left click**
+The invader icon shows the lowest remaining percentage across all accounts, skipping model
+limits that are used up (the strip's number works the same way). **Left click**
 opens the usage panel as a popover, even while the overlay is hidden. **Right click** or
 Ctrl-click opens the menu.
 

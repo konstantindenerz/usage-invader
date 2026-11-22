@@ -373,7 +373,7 @@ enum InvaderPainter {
 
         // remaining %
         if !meters.isEmpty {
-            let rem = meters.map(\.remaining).min() ?? 0
+            let rem = meters.headlineRemaining ?? 0
             number(&ctx, rem, cx: mid, y: cy + 3 * u + g.gap, u: u,
                    color: stale ? Theme.dim : (rem <= 10 ? C_red : C_hi))
         }
